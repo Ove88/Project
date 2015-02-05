@@ -1,10 +1,9 @@
 package netw
 
 import (
-	"fmt"
+	//"fmt"
 	"net"
 	"strconv"
-	"builtin"
 )
 
 var ( 
@@ -26,24 +25,26 @@ type TcpPacket struct {
 
 func StartListen(localIPAddr string, localPort int, packet_ch chan TcpPacket) {
 	
-	localaddr, err = net.ResolveTCPAddr("tcp4", localIPAddr + ":" + strconv.Itoa(localPort))
-	tcpListenConn, err := net.ListenTCP("tcp4", localaddr)
+	clients = make([]client, 5)
+	localaddr = net.ResolveTCPAddr("tcp4", localIPAddr)
+	localaddr.Port = localPort
+	tcpListenConn := net.ListenTCP("tcp4", localaddr)
 
-	go listen(tcpListenConn)
-	go receive()
+	go listen(tcpListenConn,packet_ch)
+	//go receive()
 	go send(packet_ch)
 }
 
 func Connect(localIPAddr, remoteIPAddr string, localPort, remotePort int, packet_ch chan TcpPacket) {
 
-	localaddr, err = net.ResolveTCPAddr("tcp4", localIPAddr + ":" + strconv.Itoa(localPort))
+	localaddr = net.ResolveTCPAddr("tcp4", localIPAddr + ":" + strconv.Itoa(localPort))
 	remoteaddr = net.ResolveTCPAddr("tcp4", remoteIPAddr + ":" + strconv.Itoa(remotePort))
 	
-	tcpConn, err := net.DialTCP("tcp4", localaddr, remoteaddr)
-	client := client{0, conn}
+	tcpConn := net.DialTCP("tcp4", localaddr, remoteaddr)
+	client := client{0, tcpConn}
 	clients = append(clients, client)
 	
-	go receive()
+	//go receive()
 	go send(packet_ch)
 }
 
@@ -60,31 +61,23 @@ func send(packet_ch chan TcpPacket) {
 	}
 }
 
-func listen(listenConn *net.TCPConn) {
+func listen(listenConn *net.TCPListener,packet_ch chan TcpPacket) {
 	
 	for {
-		conn, err := listenConn.AcceptTCP()
+		conn := listenConn.AcceptTCP()
 		client := client{0, conn}
-		go receive(client)
+		//go receive(client)
 		//
 		clients = append(clients, client)
-	}
-}
-
-func receives() {
-	for _, client := range clients {
-		select {
-			case data := <- client.conn.Read(b)
-
-		}
+		go receive(client,packet_ch)
 	}
 }
 
 func receive(client client, packet_ch chan TcpPacket) {
-	buffer = make([]byte,4096)
+	buffer := make([]byte,4096)
 	for {
 		n := client.conn.Read(buffer)
-		packet := TcpPacket{0,buffer[0,n],n}
+		packet := TcpPacket{0,buffer[0:n],n}
 		packet_ch <- packet
-    }
+    	}
 }

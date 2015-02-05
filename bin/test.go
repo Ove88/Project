@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	//"netw"
 	"time"
 	"udp"
 )
@@ -12,6 +13,7 @@ func print_udp_message(msg udp.Udp_message) {
 
 func node(send_ch, receive_ch chan udp.Udp_message) {
 	for {
+
 		time.Sleep(1 * time.Second)
 		snd_msg := udp.Udp_message{Raddr: "broadcast", Data: "Hello World", Length: 11}
 		fmt.Printf("Sending------\n")
@@ -28,11 +30,11 @@ func main() {
 	receive_ch := make(chan udp.Udp_message)
 	err := udp.Udp_init(20001, 20002, 1024, send_ch, receive_ch)
 	go node(send_ch, receive_ch)
-
+	n
 	if err != nil {
 		fmt.Print("main done. err = %s \n", err)
 	}
 	neverReturn := make(chan int)
 	<-neverReturn
-
+	netw
 }

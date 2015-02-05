@@ -1,4 +1,4 @@
-package netw
+package tcp
 
 import (
 	//"fmt"
@@ -26,9 +26,8 @@ type TcpPacket struct {
 func StartListen(localIPAddr string, localPort int, packet_ch chan TcpPacket) {
 	
 	clients = make([]client, 5)
-	localaddr = net.ResolveTCPAddr("tcp4", localIPAddr)
-	localaddr.Port = localPort
-	tcpListenConn := net.ListenTCP("tcp4", localaddr)
+	localaddr,_ = net.ResolveTCPAddr("tcp4", localIPAddr + ":" + strconv.Itoa(localPort))
+	tcpListenConn,_ := net.ListenTCP("tcp4", localaddr)
 
 	go listen(tcpListenConn,packet_ch)
 	//go receive()
@@ -37,10 +36,10 @@ func StartListen(localIPAddr string, localPort int, packet_ch chan TcpPacket) {
 
 func Connect(localIPAddr, remoteIPAddr string, localPort, remotePort int, packet_ch chan TcpPacket) {
 
-	localaddr = net.ResolveTCPAddr("tcp4", localIPAddr + ":" + strconv.Itoa(localPort))
-	remoteaddr = net.ResolveTCPAddr("tcp4", remoteIPAddr + ":" + strconv.Itoa(remotePort))
+	localaddr,_ = net.ResolveTCPAddr("tcp4", localIPAddr + ":" + strconv.Itoa(localPort))
+	remoteaddr,_ = net.ResolveTCPAddr("tcp4", remoteIPAddr + ":" + strconv.Itoa(remotePort))
 	
-	tcpConn := net.DialTCP("tcp4", localaddr, remoteaddr)
+	tcpConn,_ := net.DialTCP("tcp4", localaddr, remoteaddr)
 	client := client{0, tcpConn}
 	clients = append(clients, client)
 	
@@ -53,7 +52,7 @@ func send(packet_ch chan TcpPacket) {
 		packet := <- packet_ch
 		for _, client := range clients {
 			if client.id == packet.Client_id {
-				n := client.conn.Write(packet.Buffer)
+				client.conn.Write(packet.Buffer)
 
 				break
 			}
@@ -64,7 +63,7 @@ func send(packet_ch chan TcpPacket) {
 func listen(listenConn *net.TCPListener,packet_ch chan TcpPacket) {
 	
 	for {
-		conn := listenConn.AcceptTCP()
+		conn,_ := listenConn.AcceptTCP()
 		client := client{0, conn}
 		//go receive(client)
 		//
@@ -76,7 +75,7 @@ func listen(listenConn *net.TCPListener,packet_ch chan TcpPacket) {
 func receive(client client, packet_ch chan TcpPacket) {
 	buffer := make([]byte,4096)
 	for {
-		n := client.conn.Read(buffer)
+		n,_ := client.conn.Read(buffer)
 		packet := TcpPacket{0,buffer[0:n],n}
 		packet_ch <- packet
     	}

@@ -1,5 +1,0 @@
-package netw
-
-func decos() {
-
-}

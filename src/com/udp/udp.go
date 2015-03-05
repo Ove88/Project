@@ -24,10 +24,10 @@ func Init(broadcastPort, localPort int, receive_ch chan<- UdpPacket,
 
 	tempConn, err := net.DialUDP("udp4", nil, baddr)
 	defer tempConn.Close()
-	//tempAddr := tempConn.LocalAddr()
-	laddr, err = net.ResolveUDPAddr("udp4", "127.0.0.1:"+strconv.Itoa(localPort))
-	//laddr, err = net.ResolveUDPAddr("udp4", tempAddr.String())
-	//laddr.Port = localPort
+	tempAddr := tempConn.LocalAddr()
+	laddr, err = net.ResolveUDPAddr("udp4", tempAddr)
+	laddr, err = net.ResolveUDPAddr("udp4", tempAddr.String())
+	laddr.Port = localPort
 	println(laddr.String())
 	bConn, err := net.ListenUDP("udp4", baddr)
 	lConn, err := net.ListenUDP("udp4", laddr)
@@ -36,7 +36,7 @@ func Init(broadcastPort, localPort int, receive_ch chan<- UdpPacket,
 		lConn.Close()
 		return "", err
 	}
-	//go receivePackets(bConn, receive_ch)
+	go receivePackets(bConn, receive_ch)
 	go receivePackets(lConn, receive_ch)
 	go sendPackets(lConn, send_ch)
 

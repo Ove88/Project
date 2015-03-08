@@ -3,6 +3,7 @@ package udp
 import (
 	"net"
 	"strconv"
+	"strings"
 )
 
 const maxPacketSize int = 100
@@ -20,23 +21,28 @@ type UdpPacket struct {
 func Init(broadcastPort, localPort int, receive_ch chan<- UdpPacket,
 	send_ch <-chan UdpPacket) (string, error) {
 
-	baddr, err := net.ResolveUDPAddr("udp4", "255.255.255.255:"+strconv.Itoa(broadcastPort))
+	taddr, err := net.ResolveUDPAddr("udp4", "255.255.255.255:"+strconv.Itoa(localPort))
 
-	tempConn, err := net.DialUDP("udp4", nil, baddr)
+	tempConn, err := net.DialUDP("udp4", nil, taddr)
 	defer tempConn.Close()
+	println(tempConn.LocalAddr().String())
 	tempAddr := tempConn.LocalAddr()
-	laddr, err = net.ResolveUDPAddr("udp4", tempAddr)
+	//laddr, err = net.ResolveUDPAddr("udp4", "127.0.0.1:"+strconv.Itoa(localPort))
 	laddr, err = net.ResolveUDPAddr("udp4", tempAddr.String())
 	laddr.Port = localPort
 	println(laddr.String())
-	bConn, err := net.ListenUDP("udp4", baddr)
+	bTemp := strings.SplitAfterN(laddr.IP.String(), ".", 4)
+	broadcastIP := bTemp[0] + bTemp[1] + bTemp[2] + "255"
+	baddr, err = net.ResolveUDPAddr("udp4", broadcastIP+":"+strconv.Itoa(localPort))
+
+	//bConn, err := net.ListenUDP("udp4", baddr)
 	lConn, err := net.ListenUDP("udp4", laddr)
 	if err != nil {
-		bConn.Close()
+		//bConn.Close()
 		lConn.Close()
 		return "", err
 	}
-	go receivePackets(bConn, receive_ch)
+	//go receivePackets(tempConn, receive_ch)
 	go receivePackets(lConn, receive_ch)
 	go sendPackets(lConn, send_ch)
 
@@ -47,10 +53,11 @@ func receivePackets(conn *net.UDPConn, receive_ch chan<- UdpPacket) {
 
 	buffer := make([]byte, maxPacketSize)
 	for {
-		n, raddr, err := conn.ReadFromUDP(buffer)
-		if err != nil {
-			panic(err)
-		}
+		n, raddr, _ := conn.ReadFromUDP(buffer)
+		println("udpReceive")
+		// if err != nil {
+		// 	panic(err)
+		// }
 		receive_ch <- UdpPacket{raddr.String(), buffer[:n]}
 	}
 }
@@ -59,6 +66,7 @@ func sendPackets(conn *net.UDPConn, send_ch <-chan UdpPacket) {
 
 	for {
 		packet := <-send_ch
+		println("udpSend")
 		if packet.RemoteAddr == "broadcast" {
 			conn.WriteToUDP(packet.Data, baddr)
 		} else {

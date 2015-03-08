@@ -45,14 +45,6 @@ func listenStatus() {
 	}
 }
 
-// func main() {
-// 	prc := com.NewHeaderProtocol{1024}
-// 	pr := prc.NewProtocol()
-// 	message := com.ElevData{1, 102, 4, 2, "up"}
-// 	buffer := pr.Encode(message)
-// 	newMess, _ := pr.Decode(buffer)
-// 	println("dir:" + strconv.Itoa(newMess.RemoteID()))
-// }
 func bjarne() {
 	udpSend_ch := make(chan udp.UdpPacket, 5)
 	udpReceive_ch := make(chan udp.UdpPacket, 5)

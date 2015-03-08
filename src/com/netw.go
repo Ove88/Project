@@ -35,6 +35,9 @@ type ElevData struct {
 func (e ElevData) RemoteID() int {
 	return e.Client_id
 }
+func (e ElevData) String() string {
+	return "TID:" + strconv.Itoa(e.Transaction_id) + ", ClientID:" + strconv.Itoa(e.Client_id) + ", State:" + strconv.Itoa(e.Direction)
+}
 
 /////   Sett inn flere datastructer her   /////
 
@@ -51,9 +54,11 @@ func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{}) (isMaster bo
 	status_ch = make(chan tcp.ClientStatus, 1)
 
 	localIP, err := udp.Init(broadcastUdpPort, localUdpPort, udpReceive_ch, udpSend_ch)
-	localID, err = strconv.Atoi(strings.Split(localIP, ".")[4])
+	localID, err = strconv.Atoi(strings.Split(localIP, ".")[3])
+	println(localID)
 	if err != nil {
-		return
+		//return
+		println(err.Error())
 	}
 
 	masterAddr, isMaster := masterConfig()
@@ -62,6 +67,7 @@ func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{}) (isMaster bo
 		err = tcp.StartServer(
 			localIP, localTcpListenPort, send_ch, receive_ch, status_ch, newpr, maxNumberOfClients)
 		go announceMaster()
+		go readUDP()
 	} else {
 		err = tcp.StartClient(
 			localIP, masterAddr, localTcpListenPort, send_ch, receive_ch, status_ch, newpr)
@@ -83,31 +89,42 @@ func announceMaster() {
 		time.Sleep(500 * time.Millisecond)
 	}
 }
+func readUDP() {
+	for {
+		p := <-udpReceive_ch
+		println(string(p.Data))
+	}
+}
 func masterConfig() (string, bool) {
 	smallestRemoteId := 255
 	stopSending := false
-	stopTimer := time.NewTimer(1 * time.Second)
+	stopTimer := time.NewTimer(3 * time.Second)
 	for {
 		select {
 
 		case <-time.After(200 * time.Millisecond):
+			println("sender")
 			if !stopSending {
 				udpSend_ch <- udp.UdpPacket{"broadcast", []byte("ready")}
 			}
 		case packet := <-udpReceive_ch:
+			println("mottar")
 			switch strings.Split(string(packet.Data), ":")[0] {
 			case "ready":
-				remoteId, _ := strconv.Atoi(strings.Split(packet.RemoteAddr, ".")[4])
+				remoteIP := strings.Split(packet.RemoteAddr, ":")[0]
+				remoteId, _ := strconv.Atoi(strings.Split(remoteIP, ".")[3])
 				if remoteId < smallestRemoteId {
 					smallestRemoteId = remoteId
 				}
 			case "connect":
+				println("connect")
 				remoteTcpPort := strings.Split(string(packet.Data), ":")[1]
 				remoteIPAddr := strings.Split(packet.RemoteAddr, ":")[0]
 				return remoteIPAddr + ":" + remoteTcpPort, false
 			}
 
 		case <-stopTimer.C:
+			println("ferdig")
 			stopSending = true
 			if localID <= smallestRemoteId {
 				return "", true

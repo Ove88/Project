@@ -12,6 +12,7 @@ var (
 	receive_ch chan interface{}
 	status_ch  chan com.Status
 	active     bool
+	localID    int
 )
 
 func main() {
@@ -24,6 +25,7 @@ func main() {
 		println(err.Error())
 	}
 	stat := <-status_ch
+	localID = stat.ID
 	println("er master:" + strconv.FormatBool(stat.Active))
 	go status_listener()
 	if !stat.Active {
@@ -54,6 +56,12 @@ func receive() {
 func status_listener() {
 	for {
 		status := <-status_ch
-		active = status.Active
+		if status.ID == localID {
+			println("er master:" + strconv.FormatBool(status.Active))
+			if status.Active {
+				go receive()
+			}
+		}
+		active = !status.Active
 	}
 }

@@ -49,7 +49,6 @@ func StartServer(localIPAddr string, send_ch <-chan IDable, receive_ch chan<- in
 	cStatus_ch = status_ch
 	clients = make([]*client, 0, maxNumberOfClients)
 	laddr, err = net.ResolveTCPAddr("tcp4", localIPAddr+":0")
-	masterPort = laddr.Port
 	if err != nil {
 		return
 	}
@@ -59,6 +58,8 @@ func StartServer(localIPAddr string, send_ch <-chan IDable, receive_ch chan<- in
 		listenConn.Close()
 		return
 	}
+	masterPort, _ = strconv.Atoi(strings.SplitAfterN(listenConn.Addr().String(), ":", 2)[1])
+
 	go listenForClients(listenConn, receive_ch, newpr)
 	go sendPackets(send_ch, newpr.NewProtocol())
 	return

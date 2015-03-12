@@ -67,6 +67,7 @@ func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{}) (isMaster bo
 	if isMaster {
 		masterPort, err = tcp.StartServer(
 			localIP, send_ch, receive_ch, status_ch, newpr, maxNumberOfClients)
+		println(strconv.Itoa(masterPort))
 		go announceMaster(masterPort)
 		go readUDP()
 	} else {

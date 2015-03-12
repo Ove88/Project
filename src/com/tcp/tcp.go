@@ -41,7 +41,7 @@ var (
 )
 
 func StartServer(localIPAddr string, send_ch <-chan IDable, receive_ch chan<- interface{},
-	status_ch chan ClientStatus, newpr NewProtocol, maxNumberOfClients int) (err error) {
+	status_ch chan ClientStatus, newpr NewProtocol, maxNumberOfClients int) (masterPort int, err error) {
 
 	if newpr == nil {
 		return errors.New("Protocol")
@@ -49,6 +49,7 @@ func StartServer(localIPAddr string, send_ch <-chan IDable, receive_ch chan<- in
 	cStatus_ch = status_ch
 	clients = make([]*client, 0, maxNumberOfClients)
 	laddr, err = net.ResolveTCPAddr("tcp4", localIPAddr)
+	masterPort = laddr.Port
 	if err != nil {
 		return
 	}

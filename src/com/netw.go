@@ -65,9 +65,9 @@ func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{}) (isMaster bo
 	masterAddr, isMaster := masterConfig()
 
 	if isMaster {
-		err = tcp.StartServer(
+		masterPort, err := tcp.StartServer(
 			localIP, send_ch, receive_ch, status_ch, newpr, maxNumberOfClients)
-		go announceMaster()
+		go announceMaster(masterPort)
 		go readUDP()
 	} else {
 		err = tcp.StartClient(
@@ -83,10 +83,10 @@ func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{}) (isMaster bo
 // 	}
 // }
 
-func announceMaster() {
+func announceMaster(masterPort int) {
 	for {
 		udpSend_ch <- udp.UdpPacket{
-			"broadcast", []byte("connect:" + strconv.Itoa(localTcpListenPort))}
+			"broadcast", []byte("connect:" + strconv.Itoa(masterPort))}
 		time.Sleep(500 * time.Millisecond)
 	}
 }

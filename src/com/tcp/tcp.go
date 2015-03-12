@@ -106,7 +106,8 @@ func listenForClients(listenConn *net.TCPListener, receive_ch chan<- interface{}
 		clientExists = false
 		conn, err := listenConn.AcceptTCP()
 		if err != nil {
-			println(err.Error())
+			cStatus_ch <- ClientStatus{-1, false}
+			break
 		}
 		id := getClientId(conn)
 		for i, client := range clients {
@@ -135,10 +136,8 @@ func sendPackets(send_ch <-chan IDable, pr Protocol) {
 		if !ok {
 			break
 		}
-		println("før sending")
 		for i, client := range clients { //client.id == message.RemoteID() &&
 			if clients[i].active {
-				println("senderTcp")
 				client.conn.Write(pr.Encode(message))
 				break
 			}

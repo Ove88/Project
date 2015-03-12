@@ -9,19 +9,33 @@ import (
 )
 
 var (
-	localID       int
-	udpSend_ch    chan udp.UdpPacket
-	udpReceive_ch chan udp.UdpPacket
-	status_ch     chan tcp.ClientStatus
+	isMaster           bool
+	localID            int
+	localIP            string
+	stopAnnounceMaster bool
+	udpSend_ch         chan udp.UdpPacket
+	udpReceive_ch      chan udp.UdpPacket
+	tcpSend_ch         <-chan tcp.IDable
+	tcpReceive_ch      chan<- interface{}
+	cStatus_ch         chan tcp.ClientStatus
+	config_ch          chan config
 )
 
 const (
-	localTcpListenPort   int = 14000
 	localUdpPort         int = 15000
 	broadcastUdpPort     int = 16000
 	tcpReceiveBufferSize int = 1024
 	maxNumberOfClients   int = 10
 )
+
+type config struct {
+	remoteAddr string
+	isMaster   bool
+}
+type Status struct {
+	ID     int
+	Active bool
+}
 
 type ElevData struct {
 	Transaction_id int
@@ -47,65 +61,78 @@ func (e ElevData) String() string {
 // 	Elev_destination int
 //}
 
-func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{}) (isMaster bool, err error) {
+func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{}, status_ch chan Status) (err error) {
 
-	newpr := NewHeaderProtocol{tcpReceiveBufferSize}
-	udpSend_ch = make(chan udp.UdpPacket, 5)
-	udpReceive_ch = make(chan udp.UdpPacket, 5)
-	status_ch = make(chan tcp.ClientStatus, 1)
+	udpSend_ch = make(chan udp.UdpPacket, 1)
+	udpReceive_ch = make(chan udp.UdpPacket, 1)
+	cStatus_ch = make(chan tcp.ClientStatus, 1)
+	config_ch = make(chan config)
+	tcpSend_ch = send_ch
+	tcpReceive_ch = receive_ch
 
-	localIP, err := udp.Init(broadcastUdpPort, localUdpPort, udpReceive_ch, udpSend_ch)
+	localIP, err = udp.Init(broadcastUdpPort, localUdpPort, udpReceive_ch, udpSend_ch)
 	localID, err = strconv.Atoi(strings.Split(localIP, ".")[3])
 	println(localID)
 	if err != nil {
 		//return
 		println(err.Error())
 	}
-	go status_handler()
-	masterAddr, isMaster := masterConfig()
-	var masterPort int
-	if isMaster {
-		masterPort, err = tcp.StartServer(
-			localIP, send_ch, receive_ch, status_ch, newpr, maxNumberOfClients)
-		go announceMaster(masterPort)
-		go readUDP()
-	} else {
-
-		err = tcp.StartClient(
-			localIP, masterAddr, send_ch, receive_ch, status_ch, newpr)
-	}
+	go status_handler(status_ch)
+	go startConfig(status_ch)
 	return
 }
 
-func status_handler() {
+func startConfig(status_ch chan Status) {
+
+	newpr := NewHeaderProtocol{tcpReceiveBufferSize}
+	go configMaster()
+
+	configData := <-config_ch
+	isMaster = configData.isMaster
+	if isMaster {
+		remoteTcpPort, _ := tcp.StartServer(
+			localIP, tcpSend_ch, tcpReceive_ch, cStatus_ch, newpr, maxNumberOfClients)
+		go announceMaster(remoteTcpPort)
+	} else {
+		tcp.StartClient(
+			localIP, configData.remoteAddr, tcpSend_ch, tcpReceive_ch, cStatus_ch, newpr)
+	}
+}
+
+func status_handler(status_ch chan Status) {
 	for {
-		status := <-status_ch
-		println(status.String())
+		cStatus := <-cStatus_ch
+		println(cStatus.String())
+
+		if !isMaster && cStatus.Active == false {
+			go startConfig(status_ch)
+		} else if cStatus.ID == -1 {
+			stopAnnounceMaster = true
+			go startConfig(status_ch)
+		} else {
+			status_ch <- Status{cStatus.ID, cStatus.Active}
+		}
 	}
 }
 
 func announceMaster(masterPort int) {
-	for {
+	stopAnnounceMaster = false
+	for !stopAnnounceMaster {
 		udpSend_ch <- udp.UdpPacket{
 			"broadcast", []byte("connect:" + strconv.Itoa(masterPort))}
 		time.Sleep(500 * time.Millisecond)
 	}
 }
-func readUDP() {
-	for {
-		p := <-udpReceive_ch
-		println(string(p.Data))
-	}
-}
-func masterConfig() (string, bool) {
+
+func configMaster() {
 	smallestRemoteId := 255
 	stopSending := false
-	stopTimer := time.NewTimer(1 * time.Second)
+	startConfig := true
+	var stopTimer *time.Timer
 	for {
 		select {
 
-		case <-time.After(100 * time.Millisecond):
-			println("sender")
+		case <-time.After(300 * time.Millisecond):
 			if !stopSending {
 				udpSend_ch <- udp.UdpPacket{"broadcast", []byte("ready")}
 			}
@@ -114,21 +141,26 @@ func masterConfig() (string, bool) {
 			case "ready":
 				remoteIP := strings.Split(packet.RemoteAddr, ":")[0]
 				remoteId, _ := strconv.Atoi(strings.Split(remoteIP, ".")[3])
+
+				if remoteId != localID && startConfig {
+					stopTimer = time.NewTimer(1 * time.Second)
+					startConfig = false
+				}
 				if remoteId < smallestRemoteId {
 					smallestRemoteId = remoteId
 				}
 			case "connect":
-				println("connect")
 				remoteTcpPort := strings.Split(string(packet.Data), ":")[1]
 				remoteIPAddr := strings.Split(packet.RemoteAddr, ":")[0]
-				return remoteIPAddr + ":" + remoteTcpPort, false
+				config_ch <- config{remoteIPAddr + ":" + remoteTcpPort, false}
+				break
 			}
 
 		case <-stopTimer.C:
-			println("ferdig")
 			stopSending = true
 			if localID <= smallestRemoteId {
-				return "", true
+				config_ch <- config{"", true}
+				break
 			}
 		}
 	}

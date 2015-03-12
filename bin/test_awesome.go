@@ -70,11 +70,11 @@ func status_listener() {
 			if status.ID == clients[n].Id {
 				clients[n].Active = status.Active
 				exists = true
+				println("her")
 				break
 			}
 		}
 		if !exists {
-			println("ny")
 			client_ := Client{status.ID, status.Active}
 			clients = append(clients, &client_)
 			go send(&client_)

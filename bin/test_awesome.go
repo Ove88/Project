@@ -10,20 +10,21 @@ import (
 var (
 	send_ch    chan tcp.IDable
 	receive_ch chan interface{}
-	status_ch  chan tcp.ClientStatus
+	status_ch  chan com.Status
 )
 
 func main() {
 	send_ch = make(chan tcp.IDable, 1)
 	receive_ch = make(chan interface{})
-	status_ch = make(chan tcp.ClientStatus)
+	status_ch = make(chan com.Status)
 	message := com.ElevData{1, 1, 4, 2, "up"}
-	isMaster, err := com.Init(send_ch, receive_ch)
+	err := com.Init(send_ch, receive_ch, status_ch)
 	if err != nil {
 		println(err.Error())
 	}
-	println("er master:" + strconv.FormatBool(isMaster))
-	if !isMaster {
+	stat := <-status_ch
+	println("er master:" + strconv.FormatBool(stat.Active))
+	if !stat.Active {
 		for {
 			println("data sendt")
 			send_ch <- message

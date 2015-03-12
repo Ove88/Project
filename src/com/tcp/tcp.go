@@ -44,7 +44,7 @@ func StartServer(localIPAddr string, send_ch <-chan IDable, receive_ch chan<- in
 	status_ch chan ClientStatus, newpr NewProtocol, maxNumberOfClients int) (masterPort int, err error) {
 
 	if newpr == nil {
-		return errors.New("Protocol")
+		return 0, errors.New("Protocol")
 	}
 	cStatus_ch = status_ch
 	clients = make([]*client, 0, maxNumberOfClients)

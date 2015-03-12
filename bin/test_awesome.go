@@ -42,6 +42,7 @@ func main() {
 func send(client_ *Client) {
 	message := com.ElevData{1, client_.Id, 4, 2, "up"}
 	for {
+		println("nesten")
 		if client_.Active {
 			println("data sendt")
 			send_ch <- message

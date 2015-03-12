@@ -3,7 +3,7 @@ package udp
 import (
 	"net"
 	"strconv"
-	"strings"
+	//"strings"
 )
 
 const maxPacketSize int = 100
@@ -35,7 +35,6 @@ func Init(broadcastPort, localPort int, receive_ch chan<- UdpPacket,
 	//bTemp := strings.SplitAfterN(laddr.IP.String(), ".", 4)
 	//broadcastIP := bTemp[0] + bTemp[1] + bTemp[2] + "255"
 	//baddr, err = net.ResolveUDPAddr("udp4", broadcastIP+":"+strconv.Itoa(localPort))
-	baddr, err = net.ResolveUDPAddr("udp4", baddr)
 
 	bConn, err := net.ListenUDP("udp4", baddr)
 	lConn, err := net.ListenUDP("udp4", laddr)

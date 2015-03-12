@@ -116,6 +116,7 @@ func status_handler(status_ch chan Status) {
 		println(cStatus.String())
 
 		if !isMaster && cStatus.Active == false {
+			status_ch <- Status{cStatus.ID, cStatus.Active}
 			stopDrainUdp = true
 			go startConfig(status_ch)
 		} else if cStatus.ID == -1 {

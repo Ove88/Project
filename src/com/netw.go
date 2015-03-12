@@ -13,6 +13,7 @@ var (
 	localID            int
 	localIP            string
 	stopAnnounceMaster bool
+	stopDrainUdp       bool
 	udpSend_ch         chan udp.UdpPacket
 	udpReceive_ch      chan udp.UdpPacket
 	tcpSend_ch         <-chan tcp.IDable
@@ -98,6 +99,14 @@ func startConfig(status_ch chan Status) {
 	} else {
 		tcp.StartClient(
 			localIP, configData.remoteAddr, tcpSend_ch, tcpReceive_ch, cStatus_ch, newpr)
+		go drainUdp()
+	}
+}
+
+func drainUdp() {
+	stopDrainUdp = false
+	for !stopDrainUdp {
+		<-udpReceive_ch
 	}
 }
 
@@ -107,6 +116,7 @@ func status_handler(status_ch chan Status) {
 		println(cStatus.String())
 
 		if !isMaster && cStatus.Active == false {
+			stopDrainUdp = true
 			go startConfig(status_ch)
 		} else if cStatus.ID == -1 {
 			stopAnnounceMaster = true

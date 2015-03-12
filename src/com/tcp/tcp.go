@@ -157,7 +157,6 @@ func receivePackets(client_ *client, receive_ch chan<- interface{}, pr Protocol,
 				client_.active = false
 				client_.conn.Close()
 				cStatus_ch <- ClientStatus{client_.id, client_.active}
-				println("disconn")
 				break
 			}
 			nTries++

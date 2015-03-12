@@ -121,6 +121,7 @@ func announceMaster(masterPort int) {
 		udpSend_ch <- udp.UdpPacket{
 			"broadcast", []byte("connect:" + strconv.Itoa(masterPort))}
 		time.Sleep(500 * time.Millisecond)
+		println("broadcast")
 	}
 }
 
@@ -149,6 +150,7 @@ func configMaster() {
 					smallestRemoteId = remoteId
 				}
 			case "connect":
+				println("connect")
 				remoteTcpPort := strings.Split(string(packet.Data), ":")[1]
 				remoteIPAddr := strings.Split(packet.RemoteAddr, ":")[0]
 				config_ch <- config{remoteIPAddr + ":" + remoteTcpPort, false}

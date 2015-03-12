@@ -36,7 +36,8 @@ func (e ElevData) RemoteID() int {
 	return e.Client_id
 }
 func (e ElevData) String() string {
-	return "TID:" + strconv.Itoa(e.Transaction_id) + ", ClientID:" + strconv.Itoa(e.Client_id) + ", State:" + strconv.Itoa(e.Direction)
+	return "TID:" + strconv.Itoa(e.Transaction_id) + ", ClientID:" +
+		strconv.Itoa(e.Client_id) + ", State:" + e.Direction
 }
 
 /////   Sett inn flere datastructer her   /////

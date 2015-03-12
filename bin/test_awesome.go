@@ -42,7 +42,6 @@ func main() {
 func send(client_ *Client) {
 	message := com.ElevData{1, client_.Id, 4, 2, "up"}
 	for {
-		println("nesten")
 		if client_.Active {
 			println("data sendt")
 			send_ch <- message
@@ -63,8 +62,9 @@ func receive() {
 	}
 }
 func status_listener() {
-	exists := false
+	var exists bool
 	for {
+		exists = false
 		status := <-status_ch
 		for n, _ := range clients {
 			if status.ID == clients[n].Id {

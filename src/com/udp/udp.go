@@ -27,14 +27,13 @@ func Init(broadcastPort, localPort int, receive_ch chan<- UdpPacket,
 
 	tempAddr := tempConn.LocalAddr()
 	//laddr, err = net.ResolveUDPAddr("udp4", "127.0.0.1:"+strconv.Itoa(localPort))
-
 	laddr, err = net.ResolveUDPAddr("udp4", tempAddr.String())
 	laddr.Port = localPort
-	println(laddr.String())
+
 	bTemp := strings.SplitAfterN(laddr.IP.String(), ".", 4)
 	broadcastIP := bTemp[0] + bTemp[1] + bTemp[2] + "255"
 	baddr, err = net.ResolveUDPAddr("udp4", broadcastIP+":"+strconv.Itoa(broadcastPort))
-	println(baddr.String())
+
 	bConn, err := net.ListenUDP("udp4", baddr)
 	lConn, err := net.ListenUDP("udp4", laddr)
 	if err != nil {

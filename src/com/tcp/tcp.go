@@ -48,7 +48,7 @@ func StartServer(localIPAddr string, send_ch <-chan IDable, receive_ch chan<- in
 	}
 	cStatus_ch = status_ch
 	clients = make([]*client, 0, maxNumberOfClients)
-	laddr, err = net.ResolveTCPAddr("tcp4", localIPAddr)
+	laddr, err = net.ResolveTCPAddr("tcp4", localIPAddr+":0")
 	masterPort = laddr.Port
 	if err != nil {
 		return
@@ -72,7 +72,7 @@ func StartClient(localIPAddr, remoteAddr string, send_ch <-chan IDable,
 	}
 	cStatus_ch = status_ch
 	clients = make([]*client, 0, 1)
-	laddr, err = net.ResolveTCPAddr("tcp4", localIPAddr)
+	laddr, err = net.ResolveTCPAddr("tcp4", localIPAddr+":0")
 	raddr, err = net.ResolveTCPAddr("tcp4", remoteAddr)
 	if err != nil {
 		return

@@ -66,12 +66,12 @@ func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{}) (isMaster bo
 
 	if isMaster {
 		err = tcp.StartServer(
-			localIP, localTcpListenPort, send_ch, receive_ch, status_ch, newpr, maxNumberOfClients)
+			localIP, send_ch, receive_ch, status_ch, newpr, maxNumberOfClients)
 		go announceMaster()
 		go readUDP()
 	} else {
 		err = tcp.StartClient(
-			localIP, masterAddr, localTcpListenPort, send_ch, receive_ch, status_ch, newpr)
+			localIP, masterAddr, send_ch, receive_ch, status_ch, newpr)
 	}
 	return
 }
@@ -99,11 +99,11 @@ func readUDP() {
 func masterConfig() (string, bool) {
 	smallestRemoteId := 255
 	stopSending := false
-	stopTimer := time.NewTimer(2 * time.Second)
+	stopTimer := time.NewTimer(1 * time.Second)
 	for {
 		select {
 
-		case <-time.After(200 * time.Millisecond):
+		case <-time.After(100 * time.Millisecond):
 			println("sender")
 			if !stopSending {
 				udpSend_ch <- udp.UdpPacket{"broadcast", []byte("ready")}

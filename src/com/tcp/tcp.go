@@ -40,7 +40,7 @@ var (
 	cStatus_ch chan ClientStatus
 )
 
-func StartServer(localIPAddr string, localPort int, send_ch <-chan IDable, receive_ch chan<- interface{},
+func StartServer(localIPAddr string, send_ch <-chan IDable, receive_ch chan<- interface{},
 	status_ch chan ClientStatus, newpr NewProtocol, maxNumberOfClients int) (err error) {
 
 	if newpr == nil {
@@ -48,7 +48,7 @@ func StartServer(localIPAddr string, localPort int, send_ch <-chan IDable, recei
 	}
 	cStatus_ch = status_ch
 	clients = make([]*client, 0, maxNumberOfClients)
-	laddr, err = net.ResolveTCPAddr("tcp4", localIPAddr+":"+strconv.Itoa(localPort))
+	laddr, err = net.ResolveTCPAddr("tcp4", localIPAddr)
 	if err != nil {
 		return
 	}
@@ -63,7 +63,7 @@ func StartServer(localIPAddr string, localPort int, send_ch <-chan IDable, recei
 	return
 }
 
-func StartClient(localIPAddr, remoteAddr string, localPort int, send_ch <-chan IDable,
+func StartClient(localIPAddr, remoteAddr string, send_ch <-chan IDable,
 	receive_ch chan<- interface{}, status_ch chan ClientStatus, newpr NewProtocol) (err error) {
 
 	if newpr == nil {
@@ -71,7 +71,7 @@ func StartClient(localIPAddr, remoteAddr string, localPort int, send_ch <-chan I
 	}
 	cStatus_ch = status_ch
 	clients = make([]*client, 0, 1)
-	laddr, err = net.ResolveTCPAddr("tcp4", localIPAddr+":"+strconv.Itoa(localPort))
+	laddr, err = net.ResolveTCPAddr("tcp4", localIPAddr)
 	raddr, err = net.ResolveTCPAddr("tcp4", remoteAddr)
 	if err != nil {
 		return

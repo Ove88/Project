@@ -54,7 +54,6 @@ func receivePackets(conn *net.UDPConn, receive_ch chan<- UdpPacket) {
 	buffer := make([]byte, maxPacketSize)
 	for {
 		n, raddr, _ := conn.ReadFromUDP(buffer)
-		println("udpReceive")
 		// if err != nil {
 		// 	panic(err)
 		// }
@@ -66,7 +65,6 @@ func sendPackets(conn *net.UDPConn, send_ch <-chan UdpPacket) {
 
 	for {
 		packet := <-send_ch
-		println("udpSend")
 		if packet.RemoteAddr == "broadcast" {
 			conn.WriteToUDP(packet.Data, baddr)
 		} else {

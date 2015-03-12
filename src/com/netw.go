@@ -99,7 +99,7 @@ func readUDP() {
 func masterConfig() (string, bool) {
 	smallestRemoteId := 255
 	stopSending := false
-	stopTimer := time.NewTimer(3 * time.Second)
+	stopTimer := time.NewTimer(2 * time.Second)
 	for {
 		select {
 

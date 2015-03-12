@@ -158,12 +158,9 @@ func configMaster() {
 		case <-stopTimer.C:
 			if startConfig {
 				stopTimer = time.NewTimer(1 * time.Second)
-			} else {
-				stopSending = true
-				if localID <= smallestRemoteId {
-					config_ch <- config{"", true}
-					stopconfig = true
-				}
+			} else if localID <= smallestRemoteId {
+				config_ch <- config{"", true}
+				stopconfig = true
 			}
 		}
 	}

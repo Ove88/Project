@@ -109,7 +109,6 @@ func masterConfig() (string, bool) {
 				udpSend_ch <- udp.UdpPacket{"broadcast", []byte("ready")}
 			}
 		case packet := <-udpReceive_ch:
-			println("mottar")
 			switch strings.Split(string(packet.Data), ":")[0] {
 			case "ready":
 				remoteIP := strings.Split(packet.RemoteAddr, ":")[0]

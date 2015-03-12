@@ -83,7 +83,7 @@ func startNetwConfig(status_ch chan Status) {
 func configMaster() {
 	smallestRemoteId := 255
 	stopconfig := false
-	clientFound := true
+	clientFound := false
 	stopTimer := time.NewTimer(1 * time.Second)
 
 	for !stopconfig {

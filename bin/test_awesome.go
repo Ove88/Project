@@ -43,7 +43,7 @@ func send(client_ *Client) {
 	message := com.ElevData{1, client_.Id, 4, 2, "up"}
 	for {
 		if client_.Active {
-			//println("data sendt")
+			println("data sendt")
 			send_ch <- message
 		}
 		time.Sleep(1 * time.Second)

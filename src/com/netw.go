@@ -121,22 +121,20 @@ func announceMaster(masterPort int) {
 		udpSend_ch <- udp.UdpPacket{
 			"broadcast", []byte("connect:" + strconv.Itoa(masterPort))}
 		time.Sleep(500 * time.Millisecond)
-		println("broadcast")
 	}
 }
 
 func configMaster() {
 	smallestRemoteId := 255
-	stopSending := false
+	stopconfig := false
 	startConfig := true
 	stopTimer := time.NewTimer(1 * time.Second)
-	for {
+	for !stopconfig {
 		select {
 
 		case <-time.After(300 * time.Millisecond):
-			if !stopSending {
-				udpSend_ch <- udp.UdpPacket{"broadcast", []byte("ready")}
-			}
+			udpSend_ch <- udp.UdpPacket{"broadcast", []byte("ready")}
+
 		case packet := <-udpReceive_ch:
 			switch strings.Split(string(packet.Data), ":")[0] {
 			case "ready":
@@ -154,7 +152,7 @@ func configMaster() {
 				remoteTcpPort := strings.Split(string(packet.Data), ":")[1]
 				remoteIPAddr := strings.Split(packet.RemoteAddr, ":")[0]
 				config_ch <- config{remoteIPAddr + ":" + remoteTcpPort, false}
-				break
+				stopconfig = true
 			}
 
 		case <-stopTimer.C:
@@ -164,7 +162,7 @@ func configMaster() {
 				stopSending = true
 				if localID <= smallestRemoteId {
 					config_ch <- config{"", true}
-					break
+					stopconfig = true
 				}
 			}
 		}

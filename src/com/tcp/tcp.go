@@ -135,6 +135,7 @@ func sendPackets(send_ch <-chan IDable, pr Protocol) {
 		if !ok {
 			break
 		}
+		println("før sending")
 		for i, client := range clients {
 			if client.id == message.RemoteID() && clients[i].active {
 				println("senderTcp")

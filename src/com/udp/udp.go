@@ -21,28 +21,30 @@ type UdpPacket struct {
 func Init(broadcastPort, localPort int, receive_ch chan<- UdpPacket,
 	send_ch <-chan UdpPacket) (string, error) {
 
-	taddr, err := net.ResolveUDPAddr("udp4", "255.255.255.255:"+strconv.Itoa(localPort))
+	baddr, err := net.ResolveUDPAddr("udp4", "255.255.255.255:"+strconv.Itoa(broadcastPort))
 
-	tempConn, err := net.DialUDP("udp4", nil, taddr)
+	tempConn, err := net.DialUDP("udp4", nil, baddr)
 	defer tempConn.Close()
 	println(tempConn.LocalAddr().String())
 	tempAddr := tempConn.LocalAddr()
 	//laddr, err = net.ResolveUDPAddr("udp4", "127.0.0.1:"+strconv.Itoa(localPort))
+
 	laddr, err = net.ResolveUDPAddr("udp4", tempAddr.String())
 	laddr.Port = localPort
 	println(laddr.String())
-	bTemp := strings.SplitAfterN(laddr.IP.String(), ".", 4)
-	broadcastIP := bTemp[0] + bTemp[1] + bTemp[2] + "255"
-	baddr, err = net.ResolveUDPAddr("udp4", broadcastIP+":"+strconv.Itoa(localPort))
+	//bTemp := strings.SplitAfterN(laddr.IP.String(), ".", 4)
+	//broadcastIP := bTemp[0] + bTemp[1] + bTemp[2] + "255"
+	//baddr, err = net.ResolveUDPAddr("udp4", broadcastIP+":"+strconv.Itoa(localPort))
+	baddr, err = net.ResolveUDPAddr("udp4", baddr)
 
-	//bConn, err := net.ListenUDP("udp4", baddr)
+	bConn, err := net.ListenUDP("udp4", baddr)
 	lConn, err := net.ListenUDP("udp4", laddr)
 	if err != nil {
-		//bConn.Close()
+		bConn.Close()
 		lConn.Close()
 		return "", err
 	}
-	//go receivePackets(tempConn, receive_ch)
+	go receivePackets(bConn, receive_ch)
 	go receivePackets(lConn, receive_ch)
 	go sendPackets(lConn, send_ch)
 

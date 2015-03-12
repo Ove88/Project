@@ -33,6 +33,10 @@ type ClientStatus struct {
 	Active bool
 }
 
+func (c ClientStatus) String() string {
+	return strconv.Itoa(c.ID) + ":" + strconv.FormatBool(c.Active)
+}
+
 var (
 	laddr      *net.TCPAddr
 	raddr      *net.TCPAddr

@@ -61,28 +61,28 @@ func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{}) (isMaster bo
 		//return
 		println(err.Error())
 	}
-
+	go status_handler()
 	masterAddr, isMaster := masterConfig()
 	var masterPort int
 	if isMaster {
 		masterPort, err = tcp.StartServer(
 			localIP, send_ch, receive_ch, status_ch, newpr, maxNumberOfClients)
-		println(strconv.Itoa(masterPort))
 		go announceMaster(masterPort)
 		go readUDP()
 	} else {
+
 		err = tcp.StartClient(
 			localIP, masterAddr, send_ch, receive_ch, status_ch, newpr)
 	}
 	return
 }
 
-// func status_handler() {
-// 	for {
-// 		status := <-status_ch
-
-// 	}
-// }
+func status_handler() {
+	for {
+		status := <-status_ch
+		println(status.String())
+	}
+}
 
 func announceMaster(masterPort int) {
 	for {

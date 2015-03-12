@@ -36,8 +36,8 @@ func main() {
 }
 
 func receive() {
-	message := <-receive_ch
 	for {
+		message := <-receive_ch
 		switch data2 := message.(type) {
 		case com.ElevData:
 			println("data mottatt:" + data2.String())

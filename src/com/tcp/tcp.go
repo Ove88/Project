@@ -137,6 +137,7 @@ func sendPackets(send_ch <-chan IDable, pr Protocol) {
 		}
 		for i, client := range clients {
 			if client.id == message.RemoteID() && clients[i].active {
+				println("senderTcp")
 				client.conn.Write(pr.Encode(message))
 				break
 			}

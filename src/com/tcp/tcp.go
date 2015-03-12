@@ -82,7 +82,7 @@ func StartClient(localIPAddr, remoteAddr string, send_ch <-chan IDable,
 	if err != nil {
 		return
 	}
-	//go func() {
+
 	conn, err := net.DialTCP("tcp4", laddr, raddr)
 	if err != nil {
 		println(err.Error())
@@ -95,7 +95,8 @@ func StartClient(localIPAddr, remoteAddr string, send_ch <-chan IDable,
 
 	go sendPackets(send_ch, newpr.NewProtocol())
 	go receivePackets(&client_, receive_ch, newpr.NewProtocol(), newpr.GetBufferSize())
-	//}()
+
+	cStatus_ch <- ClientStatus{client_.id, client_.active}
 	return
 }
 

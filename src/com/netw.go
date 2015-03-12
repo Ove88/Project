@@ -88,7 +88,9 @@ func startConfig(status_ch chan Status) {
 	go configMaster()
 
 	configData := <-config_ch
+	status_ch <- Status{localID, configData.isMaster}
 	isMaster = configData.isMaster
+
 	if isMaster {
 		remoteTcpPort, _ := tcp.StartServer(
 			localIP, tcpSend_ch, tcpReceive_ch, cStatus_ch, newpr, maxNumberOfClients)

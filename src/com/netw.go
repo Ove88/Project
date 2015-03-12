@@ -128,7 +128,7 @@ func configMaster() {
 	smallestRemoteId := 255
 	stopSending := false
 	startConfig := true
-	var stopTimer *time.Timer
+	stopTimer := time.NewTimer(1 * time.Second)
 	for {
 		select {
 
@@ -143,7 +143,6 @@ func configMaster() {
 				remoteId, _ := strconv.Atoi(strings.Split(remoteIP, ".")[3])
 
 				if remoteId != localID && startConfig {
-					stopTimer = time.NewTimer(1 * time.Second)
 					startConfig = false
 				}
 				if remoteId < smallestRemoteId {
@@ -157,10 +156,14 @@ func configMaster() {
 			}
 
 		case <-stopTimer.C:
-			stopSending = true
-			if localID <= smallestRemoteId {
-				config_ch <- config{"", true}
-				break
+			if startConfig {
+				stopTimer = time.NewTimer(1 * time.Second)
+			} else {
+				stopSending = true
+				if localID <= smallestRemoteId {
+					config_ch <- config{"", true}
+					break
+				}
 			}
 		}
 	}

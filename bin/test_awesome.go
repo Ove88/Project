@@ -72,12 +72,12 @@ func status_listener() {
 				exists = true
 				break
 			}
-			if !exists {
-				println("ny")
-				client_ := Client{status.ID, status.Active}
-				clients = append(clients, &client_)
-				go send(&client_)
-			}
+		}
+		if !exists {
+			println("ny")
+			client_ := Client{status.ID, status.Active}
+			clients = append(clients, &client_)
+			go send(&client_)
 		}
 		if status.ID == localID {
 			println("er master:" + strconv.FormatBool(status.IsMaster))

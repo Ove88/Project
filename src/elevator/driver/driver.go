@@ -58,9 +58,9 @@ func Elevator_init() bool{
     }
 
     // Clear stop lamp, door open lamp, and set floor indicator to ground floor.
-    set_stop_lamp(false)
-    set_door_open_lamp(false)
-    set_floor_indicator(0)
+    Set_stop_lamp(false)
+    Set_door_open_lamp(false)
+    Set_floor_indicator(0)
 
     // Return success.
     return true
@@ -79,7 +79,7 @@ func Set_direction(direction int) {
 	}
 }
 
-func set_door_open_lamp(lampOpen bool) {
+func Set_door_open_lamp(lampOpen bool) {
     if lampOpen{
         Set_bit(LIGHT_DOOR_OPEN)
     }else{
@@ -96,7 +96,7 @@ func Get_stop_signal()bool {
     return Read_bit(STOP)
 }
 
-func set_stop_lamp(lampStop bool) {
+func Set_stop_lamp(lampStop bool) {
     if lampStop{
         Set_bit(LIGHT_STOP)
     }else{
@@ -118,7 +118,7 @@ func Get_floor_sensor_signal()int {
     }
 }
 
-func set_floor_indicator(floor int) {
+func Set_floor_indicator(floor int) {
 	switch floor{
 	case 0:
 		Clear_bit(LIGHT_FLOOR_IND1)

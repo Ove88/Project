@@ -39,8 +39,7 @@ type Status struct {
 	IsMaster bool
 }
 
-func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{},
-	status_ch chan Status) (localId int, err error) {
+func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{}, status_ch chan Status) (localId int, err error) {
 
 	udpSend_ch = make(chan udp.UdpPacket, 1)
 	udpReceive_ch = make(chan udp.UdpPacket, 1)

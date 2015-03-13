@@ -68,9 +68,10 @@ func status_listener() {
 		status := <-status_ch
 		for n, _ := range clients {
 			if status.ID == clients[n].Id {
+				println(strconv.FormatBool(clients[n].Active))
 				clients[n].Active = status.Active
+				println(strconv.FormatBool(clients[n].Active))
 				exists = true
-				println("her")
 				break
 			}
 		}

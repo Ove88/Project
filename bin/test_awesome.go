@@ -42,7 +42,7 @@ func main() {
 func send(client_ *Client) {
 	message := com.ElevData{1, client_.Id, 4, 2, "up"}
 	for {
-		println("send:" + strconv.FormatBool(client_.Active))
+		//	println("send:" + strconv.FormatBool(client_.Active))
 		if client_.Active {
 			println("data sendt")
 			send_ch <- message
@@ -69,21 +69,20 @@ func status_listener() {
 		status := <-status_ch
 		for n, _ := range clients {
 			if status.ID == clients[n].Id {
-				println(strconv.FormatBool(clients[n].Active))
+				//			println(strconv.FormatBool(clients[n].Active))
 				clients[n].Active = status.Active
-				println(strconv.FormatBool(clients[n].Active))
+				//			println(strconv.FormatBool(clients[n].Active))
 				exists = true
 				break
 			}
 		}
-		if !exists {
-			client_ := Client{status.ID, status.Active}
-			clients = append(clients, &client_)
-			go send(&client_)
-		}
 		if status.ID == localID {
 			println("er master:" + strconv.FormatBool(status.IsMaster))
 
+		} else if !exists {
+			client_ := Client{status.ID, status.Active}
+			clients = append(clients, &client_)
+			go send(&client_)
 		}
 	}
 }

@@ -20,7 +20,6 @@ func main(){
 	
 	    if !driver.Elevator_init() {
             fmt.Printf("Unable to initialize elevator hardware!\n")
-            
     }
 	
 

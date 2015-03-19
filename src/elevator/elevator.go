@@ -15,6 +15,7 @@ var (
 	stopFlag_sh bool
 	stopLampOn  bool
 	button_ch chan ButtonPush
+	elevPos_ch chan int
 )
 
 type Order struct {
@@ -38,14 +39,30 @@ func Init(sOrder_ch <-chan Order, rOrder_ch chan<- Order) {
 }
 
 func orderToExecute(sOrder_ch <-chan Order) {
-	
-	
-	
+	for{
+		order:=<-sOrder_ch
+		if order.Direction == "down"{
+	 		driver.Set_direction(driver.DIRECTION_DOWN)
+		}else if order.Direction == "up"{
+	 		driver.Set_direction(driver.DIRECTION_UP)
+		}
+		elevPos_ch<-order.Floor
+		
+	}
 }
 func generateOrder(rOrder_ch chan<- Order) {
 	for{
 		buttonPush := <- button_ch
 		println("Floor: "+ strconv.Itoa(buttonPush.Floor) + ", Button: "+strconv.Itoa(buttonPush.Button))
+	}
+}
+
+func readElevatorPosition(){
+	var pos int
+	for{
+		floor:=<-elevPos_ch
+		driver.Get_floor_sensor_signal()
+		time.Sleep(1 * time.Millisecond)
 	}
 }
 

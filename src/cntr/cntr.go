@@ -8,13 +8,12 @@ import (
 const orderSize int = 50
 
 var (
-	send_ch    chan tcp.IDable
-	receive_ch chan interface{}
-	status_ch  chan com.Status
-	lOrder_ch  chan elevator.Order
-	active     bool
-	localID    int
-	clients    []*Client
+	send_ch       chan tcp.IDable
+	receive_ch    chan interface{}
+	status_ch     chan com.Status
+	lOrder_ch     chan elevator.Order
+	elevStatus_ch chan elevator.Status
+	clients       []*Client
 )
 
 type Client struct {
@@ -34,6 +33,9 @@ func transactionManager() {
 
 func packetHandler() {
 	for {
+		for i := 0; i < count; i++ {
+
+		}
 		select {
 		case message := <-receive_ch:
 
@@ -49,7 +51,7 @@ func packetHandler() {
 		case status := <-status_ch:
 			println("status")
 
-		 mcase order := <-lOrder_ch:
+		case order := <-lOrder_ch:
 			println("lOrder")
 		}
 	}

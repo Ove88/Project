@@ -7,9 +7,9 @@ const N_FLOORS = 4
 
 
 
-/*
 type Elev_btn_type int
 
+/*
 const (
 	BTN_UP Elev_btn_type = iota
 	BTN_DOWN
@@ -136,31 +136,34 @@ func Set_floor_indicator(floor int) {
 }
 
 
-/*
-func get_button_signal(elev_button_type_t button, int floor) {
-    assert(floor >= 0);
-    assert(floor < N_FLOORS);
-    assert(!(button == BUTTON_CALL_UP && floor == N_FLOORS - 1));
-    assert(!(button == BUTTON_CALL_DOWN && floor == 0));
-    assert(button == BUTTON_CALL_UP || button == BUTTON_CALL_DOWN || button == BUTTON_COMMAND);
+func Get_button_signal(button int, floor int)int{ 
+    /**
+	assert(floor >= 0)
+    assert(floor < N_FLOORS)
+    assert(!(button == BUTTON_CALL_UP && floor == N_FLOORS - 1))
+    assert(!(button == BUTTON_CALL_DOWN && floor == 0))
+    assert(button == BUTTON_CALL_UP || button == BUTTON_CALL_DOWN || button == BUTTON_COMMAND)
+	*/
 
-    if (io_read_bit(button_channel_matrix[floor][button]))
-        return 1;
-    else
-        return 0;
+    if Read_bit(button_channel_matrix[floor][button]){
+        return 1
+	}else{
+        return 0
+	}
 }
 
-
-func elev_set_button_lamp(elev_button_type_t button, int floor, int value) {
-    assert(floor >= 0);
-    assert(floor < N_FLOORS);
-    assert(!(button == BUTTON_CALL_UP && floor == N_FLOORS - 1));
-    assert(!(button == BUTTON_CALL_DOWN && floor == 0));
-    assert(button == BUTTON_CALL_UP || button == BUTTON_CALL_DOWN || button == BUTTON_COMMAND);
-
-    if (value)
-        io_set_bit(lamp_channel_matrix[floor][button]);
-    else
-        io_clear_bit(lamp_channel_matrix[floor][button]);
+func Elev_set_button_lamp( button int, floor int, value bool) {
+	/*
+	assert(floor >= 0)
+    assert(floor < N_FLOORS)
+    assert(!(button == BUTTON_CALL_UP && floor == N_FLOORS - 1))
+    assert(!(button == BUTTON_CALL_DOWN && floor == 0))
+    assert(button == BUTTON_CALL_UP || button == BUTTON_CALL_DOWN || button == BUTTON_COMMAND)
+	*/
+	
+    if value{
+        Set_bit(lamp_channel_matrix[floor][button])
+    }else{
+        Clear_bit(lamp_channel_matrix[floor][button])
+	}
 }
-*/

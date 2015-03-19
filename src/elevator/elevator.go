@@ -12,6 +12,11 @@ var (
 	stopLampOn  bool
 )
 
+type Order struct {
+	Floor     int
+	Direction string
+}
+
 // Styrer heisen. Leser knapper og setter posisjon
 
 func Init(setFloor_ch <-chan int, getFloor_ch chan<- int, button_ch chan<- int) {

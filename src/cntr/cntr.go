@@ -1,25 +1,88 @@
 package cntr
 
+import (
+	"com"
+	"elevator"
+)
+
+const orderSize int = 50
+
+var (
+	send_ch    chan tcp.IDable
+	receive_ch chan interface{}
+	status_ch  chan com.Status
+	lOrder_ch  chan elevator.Order
+	active     bool
+	localID    int
+	clients    []*Client
+)
+
 type Client struct {
 	ID        int
+	Active    bool
 	Position  int
 	Direction int
-	Orders    []Order
+	Orders    []*com.Order
 }
 
-type Order struct {
-	ID        int
-	Position  int
-	Direction int
+func transactionManager() {
+	for {
+		order := <-order_ch
+
+	}
 }
 
-var clients []Client
+func packetHandler() {
+	for {
+		select {
+		case message := <-receive_ch:
 
-func c(o Order) {
-	for i, client := range clients {
-		for j, order := range client.Orders {
+			switch data := message.(type) {
+			case com.ElevData:
+				println("elevData")
+			case com.Order:
+				println("rOrder")
+			default:
+				println("default")
+			}
 
+		case status := <-status_ch:
+			println("status")
+
+		 mcase order := <-lOrder_ch:
+			println("lOrder")
 		}
 	}
+}
 
+func statusHandler() {
+	var clientExists bool
+	for {
+		clientExists = false
+		status := <-status_ch
+		if status.ID == localID {
+
+		} else {
+			for n, client := range clients {
+				if client.ID == status.ID {
+					clientExists = true
+					clients[n].Active = status.Active
+					break
+				}
+			}
+		}
+		if !clientExists {
+			client := Client{
+				status.ID, status.Active, 0, 0, make([]*Order, 0, orderSize)}
+			clients = append(clients, &client)
+		}
+	}
+}
+
+func main() {
+	for {
+		select {
+		case <-receive_ch:
+		}
+	}
 }

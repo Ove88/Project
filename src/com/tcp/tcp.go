@@ -107,7 +107,7 @@ func listenForClients(listenConn *net.TCPListener, receive_ch chan<- interface{}
 		clientExists = false
 		conn, err := listenConn.AcceptTCP()
 		if err != nil {
-			cStatus_ch <- ClientStatus{-1, false}
+			cStatus_ch <- ClientStatus{getClientId(listenConn), false}
 			break
 		}
 		id := getClientId(conn)

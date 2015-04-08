@@ -5,15 +5,19 @@ import (
 	"elevator"
 )
 
-const orderSize int = 50
+const (
+	orderSize          int = 50
+	maxNumberOfClients int = 10
+)
 
 var (
 	send_ch       chan tcp.IDable
 	receive_ch    chan interface{}
-	status_ch     chan com.Status
+	comStatus_ch  chan com.Status
 	lOrder_ch     chan elevator.Order
 	elevStatus_ch chan elevator.Status
 	clients       []*Client
+	isMaster      bool
 )
 
 type Client struct {
@@ -24,18 +28,28 @@ type Client struct {
 	Orders    []*com.Order
 }
 
-func transactionManager() {
+func main() {
+
+	clients = make([]*Client, 0, maxNumberOfClients)
+	send_ch = make(chan tcp.IDable, 1)
+	receive_ch = make(chan interface{}, 10)
+	comStatus_ch = make(chan com.Status, 5)
+	lOrder_ch = make(chan elevator.Order, 5)
+	elevStatus_ch = make(chan elevator.Status, 5)
+	wait := make(chan bool)
+	localID, _ := com.Init(send_ch, receive_ch, comStatus_ch)
+	clients[0] = Client{localID, true, 0, 0, make([]*com.Order, 0, orderSize)}
+}
+
+func orderManager() {
 	for {
 		order := <-order_ch
-
+		calculate()
 	}
 }
 
 func packetHandler() {
 	for {
-		for i := 0; i < count; i++ {
-
-		}
 		select {
 		case message := <-receive_ch:
 
@@ -44,24 +58,28 @@ func packetHandler() {
 				println("elevData")
 			case com.Order:
 				println("rOrder")
+			case com.Ack:
+				println("Ack")
 			default:
 				println("default")
 			}
 
-		case status := <-status_ch:
-			println("status")
-
 		case order := <-lOrder_ch:
+
 			println("lOrder")
 		}
 	}
 }
 
-func statusHandler() {
+func elevatorDataManager() {
+
+}
+
+func statusManager() {
 	var clientExists bool
 	for {
 		clientExists = false
-		status := <-status_ch
+		status := <-comStatus_ch
 		if status.ID == localID {
 
 		} else {
@@ -77,14 +95,6 @@ func statusHandler() {
 			client := Client{
 				status.ID, status.Active, 0, 0, make([]*Order, 0, orderSize)}
 			clients = append(clients, &client)
-		}
-	}
-}
-
-func main() {
-	for {
-		select {
-		case <-receive_ch:
 		}
 	}
 }

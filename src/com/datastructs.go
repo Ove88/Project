@@ -5,31 +5,38 @@ import (
 )
 
 type ElevData struct {
-	TransactionID int
-	ClientID      int
-	State         int
-	Position      int
-	Direction     string
+	TransID   int
+	RecvID    int
+	State     int
+	Position  int
+	Direction string
 	//Destinations   []int
 }
 
 func (e ElevData) RemoteID() int {
-	return e.ClientID
+	return e.RecvID
 }
 func (e ElevData) String() string {
-	return "TID:" + strconv.Itoa(e.TransactionID) + ", ClientID:" +
-		strconv.Itoa(e.ClientID) + ", State:" + e.Direction
+	return "TID:" + strconv.Itoa(e.TransID) + ", RecvID:" +
+		strconv.Itoa(e.RecvID) + ", State:" + e.Direction
 }
 
 type Order struct {
-	ClientID  int
+	TransID   int
+	RecvID    int
 	Floor     int
 	Direction string
 }
 
-/////   Sett inn flere datastructer her   /////
+type Ack struct {
+	TransID int
+	RecvID  int
+}
 
-// type ElevOrder struct {
-// 	ClientID     	 int
-// 	Elev_destination int
-//}
+type Orders struct {
+	TransID int
+	RecvID  int
+	Orders  *[]Order
+}
+
+/////   Sett inn flere datastructer her   /////

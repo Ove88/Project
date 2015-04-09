@@ -4,19 +4,18 @@ import (
 	"strconv"
 )
 
-type ElevData struct {
+type ElevUpdate struct {
 	TransID   int
 	RecvID    int
 	State     int
 	Position  int
 	Direction string
-	//Destinations   []int
 }
 
-func (e ElevData) RemoteID() int {
+func (e ElevUpdate) RemoteID() int {
 	return e.RecvID
 }
-func (e ElevData) String() string {
+func (e ElevUpdate) String() string {
 	return "TID:" + strconv.Itoa(e.TransID) + ", RecvID:" +
 		strconv.Itoa(e.RecvID) + ", State:" + e.Direction
 }

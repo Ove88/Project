@@ -137,14 +137,6 @@ func Set_floor_indicator(floor int) {
 
 
 func Get_button_signal(button int, floor int)int{ 
-    /**
-	assert(floor >= 0)
-    assert(floor < N_FLOORS)
-    assert(!(button == BUTTON_CALL_UP && floor == N_FLOORS - 1))
-    assert(!(button == BUTTON_CALL_DOWN && floor == 0))
-    assert(button == BUTTON_CALL_UP || button == BUTTON_CALL_DOWN || button == BUTTON_COMMAND)
-	*/
-
     if Read_bit(button_channel_matrix[floor][button]){
         return 1
 	}else{
@@ -153,14 +145,6 @@ func Get_button_signal(button int, floor int)int{
 }
 
 func Elev_set_button_lamp( button int, floor int, value bool) {
-	/*
-	assert(floor >= 0)
-    assert(floor < N_FLOORS)
-    assert(!(button == BUTTON_CALL_UP && floor == N_FLOORS - 1))
-    assert(!(button == BUTTON_CALL_DOWN && floor == 0))
-    assert(button == BUTTON_CALL_UP || button == BUTTON_CALL_DOWN || button == BUTTON_COMMAND)
-	*/
-	
     if value{
         Set_bit(lamp_channel_matrix[floor][button])
     }else{

@@ -4,7 +4,7 @@ package elevator
 import (
 	"elevator/driver"
 	"time"
-	//"strconv"
+	"strconv"
 	
 )
 const (N_FLOORS int = 4
@@ -15,7 +15,7 @@ var (
 	stopFlag_sh bool
 	stopLampOn  bool
 	button_ch chan ButtonPush
-	elevPos_ch chan int
+	elevPos_ch chan Order
 )
 
 type Order struct {
@@ -25,6 +25,11 @@ type Order struct {
 	Direction string
 }
 
+type Light struct{
+	State bool
+	Floor int
+	Button int
+}
 type ButtonPush struct {
 	Floor 	int
 	Button 	int
@@ -38,10 +43,10 @@ type Pos struct{
 
 func Init(sOrder_ch <-chan Order, rOrder_ch chan<- Order, pos_ch chan Pos) {
 	button_ch = make(chan ButtonPush)
-	elevPos_ch=make(chan int)
-	go setFloorLight()
+	elevPos_ch=make(chan Order)
+	go setFloorLamp()
 	go setStopLamp()
-	go readButtons()
+	go buttonReader()
 	go generateOrder(rOrder_ch)
 	go orderToExecute(sOrder_ch)
 	go readElevatorPosition(pos_ch)
@@ -53,15 +58,15 @@ func orderToExecute(sOrder_ch <-chan Order) {
 		if order.Direction == "down"{
 	 		driver.Set_direction(driver.DIRECTION_DOWN)
 		}else if order.Direction == "up"{
-			println("up")
 	 		driver.Set_direction(driver.DIRECTION_UP)
 		}else{
 			driver.Set_direction(driver.DIRECTION_STOP)
 		}
-		elevPos_ch<-order.Floor
+		elevPos_ch<-order
 		
 	}
 }
+
 func generateOrder(rOrder_ch chan<- Order) {
 	for{
 		buttonPush := <- button_ch
@@ -80,7 +85,7 @@ func generateOrder(rOrder_ch chan<- Order) {
 func readElevatorPosition(pos_ch chan Pos){
 	var pos,lastPos int
 	for{
-		floor:=<-elevPos_ch
+		order:=<-elevPos_ch
 		//println(strconv.Itoa(floor))
 		for{
 			time.Sleep(1 * time.Millisecond)
@@ -89,9 +94,18 @@ func readElevatorPosition(pos_ch chan Pos){
 		pos_ch<-Pos{pos,0}
 		}
 		//println(strconv.Itoa(pos))
-		if pos == floor{
+		if pos == order.Floor{
 			driver.Set_direction(driver.DIRECTION_STOP)
+			if order.Direction == "up"{
+				driver.
+				//SetButtonLight(ButtonPush{order.Floor,0},false)
+			}else{
+				//SetButtonLight(ButtonPush{order.Floor,1},false)
+			}
+			driver.Set_door_open_lamp(true)
 			break
+		}else{
+			driver.Set_door_open_lamp(false)
 		}
 		time.Sleep(1 * time.Millisecond)
 		lastPos = pos
@@ -99,35 +113,39 @@ func readElevatorPosition(pos_ch chan Pos){
 	}
 }
 
-func setFloorLight() {
+func setFloorLamp() {
 	for {
 		driver.Set_floor_indicator(driver.Get_floor_sensor_signal())
 		time.Sleep(1 * time.Millisecond)
 	}
 }
 
-func SetButtonLight(light ButtonPush){
-	driver.Elev_set_button_lamp(light.Button,light.Floor,true)
+func SetButtonLamp(button, floor int){
+		driver.Elev_set_button_lamp(button,floor,true)
 }
 
 func setStopLamp() {
+	var stoplamp bool
+	var flag bool
 	for {
-		stopFlag = driver.Get_stop_signal()
-		if stopFlag != stopFlag_sh {
-			if !stopLampOn {
-				driver.Set_stop_lamp(stopFlag)
-				stopLampOn = true
+		stopBtn := driver.Get_stop_signal()
+		if stopBtn && !flag {
+			if !stoplamp {
+				stoplamp = true
+				driver.Set_stop_lamp(stoplamp)
 			} else {
-				driver.Set_stop_lamp(stopFlag)
-				stopLampOn = false
+				stoplamp = false
+				driver.Set_stop_lamp(stoplamp)
 			}
+			flag = true
+		}else if !stopBtn && flag{
+			flag = false
 		}
-		stopFlag_sh = stopFlag
 		time.Sleep(1 * time.Millisecond)
 	}
 }
 
-func readButtons(){
+func buttonReader(){
 	currButtons := make([][]int,N_FLOORS)
     prevButtons :=  make([][]int,N_FLOORS)
 	for i :=range currButtons{
@@ -138,20 +156,13 @@ func readButtons(){
 	for{
 		for floor := 0; floor < N_FLOORS; floor++{
 			for  btn := 0;btn < N_BUTTONS; btn++{
-				/*if btn == BUTTON_CALL_UP && floor == N_FLOORS-1 ||
-				btn == BUTTON_CALL_DOWN && floor == 0{
-					continue
-				}*/
-				
 				prevButtons[floor][btn] = currButtons[floor][btn]
 				currButtons[floor][btn] = driver.Get_button_signal(btn,floor)
 				
-				if currButtons[floor][btn] != prevButtons[floor][btn] && currButtons[floor][btn]==1{
-					
+				if currButtons[floor][btn] != prevButtons[floor][btn] && 
+				currButtons[floor][btn]==1{			
 					button_ch <- ButtonPush{floor,btn}
-					SetButtonLight(ButtonPush{floor,btn})
-					//println("floor:"+strconv.Itoa(floor)+"btn:"+strconv.Itoa(btn))
-				}	
+				}
 			}
 		}
 		time.Sleep(1*time.Millisecond)

@@ -4,7 +4,7 @@ import(
 	"elevator/driver"
 	"elevator"
 	"fmt"
-	//"strconv"
+	"strconv"
 	"time"
 )
 
@@ -14,16 +14,20 @@ func main(){
 	// Initialize variables
 	sOrder_ch := make(chan elevator.Order)
 	rOrder_ch := make(chan elevator.Order)
+	pos_ch:=make(chan elevator.Pos)
 	// Initialize hardware
-	elevator.Init(sOrder_ch,rOrder_ch)
+	elevator.Init(sOrder_ch,rOrder_ch,pos_ch)
     driver.Set_direction(driver.DIRECTION_DOWN)
 	
 	    if !driver.Elevator_init() {
             fmt.Printf("Unable to initialize elevator hardware!\n")
     }
 	
-
+	sOrder_ch<-elevator.Order{0,false,0,"down"}
     for{
+		pos:=<-pos_ch
+		println("pos:"+strconv.Itoa(pos.LastPos))
+		//println(order.Direction)
         // Change direction when the elevator reaches top/bottom floor
         /**
 		if driver.Get_floor_sensor_signal() == driver.N_FLOORS - 1 {

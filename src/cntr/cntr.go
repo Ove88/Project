@@ -23,7 +23,7 @@ var (
 type Client struct {
 	ID        int
 	Active    bool
-	Position  int
+	LastPosition  int
 	Direction int
 	Orders    []*com.Order
 }

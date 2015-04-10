@@ -18,9 +18,9 @@ const (
 */
 
 const (
-	DIRECTION_UP int = 0
-	DIRECTION_STOP int = -1
-	DIRECTION_DOWN int = 1
+	DIRECTION_UP int =1
+	DIRECTION_STOP int = 0
+	DIRECTION_DOWN int = -1
 )
 
 var lamp_channel_matrix = [N_FLOORS][N_BUTTONS]int {
@@ -48,13 +48,13 @@ func Elevator_init() bool{
     // Zero all floor button lamps
     for i := 0; i < N_FLOORS; i++ {
         if i != 0{
-           Set_button_indicator(0, i, false)
+           // Set_button_lamp(BUTTON_CALL_DOWN, i, 0)
 	}
 
         if i != N_FLOORS - 1 {
-           Set_button_indicator(1, i, false)
+           // Set_button_lamp(BUTTON_CALL_UP, i, 0)
 	}
-       Set_button_indicator(2, i, false)
+       // Set_button_lamp(BUTTON_COMMAND, i, 0)
     }
 
     // Clear stop lamp, door open lamp, and set floor indicator to ground floor.
@@ -144,7 +144,7 @@ func Get_button_signal(button int, floor int)int{
 	}
 }
 
-func Set_button_indicator( button int, floor int, value bool) {
+func Elev_set_button_lamp( button int, floor int, value bool) {
     if value{
         Set_bit(lamp_channel_matrix[floor][button])
     }else{

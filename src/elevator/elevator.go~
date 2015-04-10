@@ -4,7 +4,7 @@ package elevator
 import (
 	"elevator/driver"
 	"time"
-	"strconv"
+	//"strconv"
 	
 )
 const (N_FLOORS int = 4
@@ -14,8 +14,9 @@ var (
 	stopFlag    bool
 	stopFlag_sh bool
 	stopLampOn  bool
-	button_ch chan ButtonPush
-	elevPos_ch chan Order
+	button_ch   chan ButtonPush
+	elevPos_ch  chan Order
+	elevPosition int
 )
 
 type Order struct {
@@ -91,13 +92,13 @@ func readElevatorPosition(pos_ch chan Pos){
 			time.Sleep(1 * time.Millisecond)
 		pos = driver.Get_floor_sensor_signal()
 		if pos!= -1 && lastPos!=pos{
-		pos_ch<-Pos{pos,0}
+		pos_ch<-Pos{pos,order.}
 		}
 		//println(strconv.Itoa(pos))
 		if pos == order.Floor{
 			driver.Set_direction(driver.DIRECTION_STOP)
-			//if order.Direction == "up"{
-				
+			if order.Direction == "up"{
+				driver.Set_button_indicator(order.
 				//SetButtonLight(ButtonPush{order.Floor,0},false)
 			//}else{
 				//SetButtonLight(ButtonPush{order.Floor,1},false)

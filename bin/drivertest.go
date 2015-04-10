@@ -5,15 +5,15 @@ import(
 	"elevator"
 	"fmt"
 	"strconv"
-	"time"
+	//"time"
 )
 
 
 
 func main(){
 	// Initialize variables
-	sOrder_ch := make(chan elevator.Order)
-	rOrder_ch := make(chan elevator.Order)
+	sOrder_ch := make(chan elevator.Order,2)
+	rOrder_ch := make(chan elevator.Order,2)
 	pos_ch:=make(chan elevator.Pos)
 	
 	// Initialize hardware
@@ -23,12 +23,33 @@ func main(){
 	    if !driver.Elevator_init() {
             fmt.Printf("Unable to initialize elevator hardware!\n")
     }
-	
-	sOrder_ch<-elevator.Order{0,false,0,"down"}
-	//setLight_ch<-elevator.Light{true,0,1}
+	go func(){
+		for{
+		order:=<-rOrder_ch
+		println("order:"+strconv.Itoa(order.Floor))
+		if order.Internal{
+			elevator.SetButtonLamp(2,order.Floor)
+		}else{
+			elevator.SetButtonLamp(order.Direction,order.Floor)
+		}	
+		sOrder_ch<-order
+		}
+	}()
+	//sOrder_ch<-elevator.Order{false,1,0}
     for{
 		pos:=<-pos_ch
 		println("pos:"+strconv.Itoa(pos.LastPos))
+		//order:=<-rOrder_ch
+		//println("order:"+strconv.Itoa(order.Floor))
+		//if order.Internal{
+		//	elevator.SetButtonLamp(2,order.Floor)
+		//}else{
+		//	elevator.SetButtonLamp(order.Direction,order.Floor)
+		//}
+		
+		//sOrder_ch<-order
+		//pos:=<-pos_ch
+		//println("pos:"+strconv.Itoa(pos.LastPos))
 		//println(order.Direction)
         // Change direction when the elevator reaches top/bottom floor
         /**
@@ -38,7 +59,7 @@ func main(){
             driver.Set_direction(driver.DIRECTION_UP)
         }
 		*/
-		time.Sleep(1*time.Millisecond)		
+		//time.Sleep(1*time.Millisecond)		
 		//println("Floor: "+strconv.Itoa(driver.Get_floor_sensor_signal()))
 
     }

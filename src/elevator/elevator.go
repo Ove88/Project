@@ -4,32 +4,32 @@ package elevator
 import (
 	"elevator/driver"
 	"time"
-	//"strconv"
+	"strconv"
 	
 )
-const (N_FLOORS int = 4
-N_BUTTONS int =3
+const (
+	numberOfFloors 	int = 4
+	numberOfButtons 	int = 3
+	
 )
 var (
 	stopFlag    bool
 	stopFlag_sh bool
 	stopLampOn  bool
-	button_ch chan ButtonPush
-	elevPos_ch chan Order
+	button_ch   chan ButtonPush
+	elevPos_ch  chan Order
+	doorOpen_ch chan bool
+	currentPosition int
+	currentDirection int
+	doorOpen bool
 )
 
 type Order struct {
-	OrderID int
 	Internal bool
 	Floor     int
-	Direction string
+	Direction int
 }
 
-type Light struct{
-	State bool
-	Floor int
-	Button int
-}
 type ButtonPush struct {
 	Floor 	int
 	Button 	int
@@ -42,41 +42,68 @@ type Pos struct{
 // Styrer heisen. Leser knapper og setter posisjon
 
 func Init(sOrder_ch <-chan Order, rOrder_ch chan<- Order, pos_ch chan Pos) {
+	driver.Set_direction(driver.DIRECTION_STOP)
 	button_ch = make(chan ButtonPush)
 	elevPos_ch=make(chan Order)
+	doorOpen_ch = make(chan bool)
+	go readElevatorPosition(pos_ch)
 	go setFloorLamp()
 	go setStopLamp()
 	go buttonReader()
-	go generateOrder(rOrder_ch)
-	go orderToExecute(sOrder_ch)
-	go readElevatorPosition(pos_ch)
+	go orderGenerator(rOrder_ch)
+	go orderHandler(sOrder_ch)
+	go doorHandler()
 }
 
-func orderToExecute(sOrder_ch <-chan Order) {
+func doorHandler(){
 	for{
-		order:=<-sOrder_ch
-		if order.Direction == "down"{
-	 		driver.Set_direction(driver.DIRECTION_DOWN)
-		}else if order.Direction == "up"{
-	 		driver.Set_direction(driver.DIRECTION_UP)
-		}else{
-			driver.Set_direction(driver.DIRECTION_STOP)
-		}
-		elevPos_ch<-order
-		
+	<-doorOpen_ch
+	doorOpen = true
+	driver.Set_door_open_lamp(true)
+	time.Sleep(3*time.Second)
+	driver.Set_door_open_lamp(false)
+	doorOpen = false
 	}
 }
 
-func generateOrder(rOrder_ch chan<- Order) {
+func orderHandler(sOrder_ch <-chan Order) {
+	for{
+		order:=<-sOrder_ch
+		currentPosition = driver.Get_floor_sensor_signal()
+		//println(strconv.Itoa(currentPosition))
+		if doorOpen{
+			time.Sleep(1*time.Millisecond)
+			continue
+		}else{
+		if order.Floor < currentPosition{
+			currentDirection = 1
+			driver.Set_direction(driver.DIRECTION_DOWN)
+		}else if order.Floor > currentPosition {
+			driver.Set_direction(driver.DIRECTION_UP)
+			currentDirection = 0
+		}
+		}
+		elevPos_ch<-order
+	}
+}
+
+func orderGenerator(rOrder_ch chan<- Order) {
 	for{
 		buttonPush := <- button_ch
 		if buttonPush.Button == 2{
-		rOrder_ch<-Order{0,true,buttonPush.Floor,""}
-		}else if buttonPush.Button ==0{
-			
-			rOrder_ch<-Order{0,false,buttonPush.Floor,"up"}
+			println("ButtonPush.Floor: "+ strconv.Itoa(buttonPush.Floor) + ", CurrentPosition: "+strconv.Itoa(currentPosition))
+			if buttonPush.Floor > currentPosition{
+				println("er her 4")
+				rOrder_ch<-Order{true,buttonPush.Floor,0}
+			}else if buttonPush.Floor < currentPosition{
+				println("er her 5")
+				rOrder_ch<-Order{true,buttonPush.Floor,1}
+			}else{
+				println("er her 6")
+				doorOpen_ch<-true
+			}
 		}else{
-			rOrder_ch<-Order{0,false,buttonPush.Floor,"down"}
+			rOrder_ch<-Order{false,buttonPush.Floor,buttonPush.Button}
 		}
 		//println("Floor: "+ strconv.Itoa(buttonPush.Floor) + ", Button: "+strconv.Itoa(buttonPush.Button))
 	}
@@ -86,29 +113,32 @@ func readElevatorPosition(pos_ch chan Pos){
 	var pos,lastPos int
 	for{
 		order:=<-elevPos_ch
-		//println(strconv.Itoa(floor))
+		
 		for{
+			println("er her 1")
+			pos = driver.Get_floor_sensor_signal()
+			if pos!= -1 && lastPos!=pos{
+				println("er her 2")
+				currentPosition = pos
+				println("currentPos:"+strconv.Itoa(currentPosition))
+		      	pos_ch<-Pos{pos,currentDirection}
+			}
+			//println(strconv.Itoa(pos))
+			if pos == order.Floor{
+				println("er her 3")
+				driver.Set_direction(driver.DIRECTION_STOP)
+				if order.Internal{
+					driver.Set_button_indicator(2,pos,false)
+				}else{
+					driver.Set_button_indicator(order.Direction,pos,false)					
+				}
+				currentDirection = -1
+				doorOpen_ch<-true
+				pos_ch<-Pos{pos,currentDirection}
+				break
+			}
 			time.Sleep(1 * time.Millisecond)
-		pos = driver.Get_floor_sensor_signal()
-		if pos!= -1 && lastPos!=pos{
-		pos_ch<-Pos{pos,0}
-		}
-		//println(strconv.Itoa(pos))
-		if pos == order.Floor{
-			driver.Set_direction(driver.DIRECTION_STOP)
-			//if order.Direction == "up"{
-				
-				//SetButtonLight(ButtonPush{order.Floor,0},false)
-			//}else{
-				//SetButtonLight(ButtonPush{order.Floor,1},false)
-		//	}
-			driver.Set_door_open_lamp(true)
-			break
-		}else{
-			driver.Set_door_open_lamp(false)
-		}
-		time.Sleep(1 * time.Millisecond)
-		lastPos = pos
+			lastPos = pos
 		}
 	}
 }
@@ -116,12 +146,13 @@ func readElevatorPosition(pos_ch chan Pos){
 func setFloorLamp() {
 	for {
 		driver.Set_floor_indicator(driver.Get_floor_sensor_signal())
+		//println(strconv.Itoa(currentPosition))
 		time.Sleep(1 * time.Millisecond)
 	}
 }
 
 func SetButtonLamp(button, floor int){
-		driver.Elev_set_button_lamp(button,floor,true)
+		driver.Set_button_indicator(button,floor,true)
 }
 
 func setStopLamp() {
@@ -133,9 +164,11 @@ func setStopLamp() {
 			if !stoplamp {
 				stoplamp = true
 				driver.Set_stop_lamp(stoplamp)
+				driver.Set_direction(driver.DIRECTION_STOP)
 			} else {
 				stoplamp = false
 				driver.Set_stop_lamp(stoplamp)
+				driver.Set_direction(currentDirection)
 			}
 			flag = true
 		}else if !stopBtn && flag{
@@ -146,16 +179,16 @@ func setStopLamp() {
 }
 
 func buttonReader(){
-	currButtons := make([][]int,N_FLOORS)
-    prevButtons :=  make([][]int,N_FLOORS)
+	currButtons := make([][]int,numberOfFloors)
+    prevButtons :=  make([][]int,numberOfFloors)
 	for i :=range currButtons{
 		currButtons[i]=make([]int,3)
 		prevButtons[i]=make([]int,3)
 	}
 	
 	for{
-		for floor := 0; floor < N_FLOORS; floor++{
-			for  btn := 0;btn < N_BUTTONS; btn++{
+		for floor := 0; floor < numberOfFloors; floor++{
+			for  btn := 0;btn < numberOfButtons; btn++{
 				prevButtons[floor][btn] = currButtons[floor][btn]
 				currButtons[floor][btn] = driver.Get_button_signal(btn,floor)
 				

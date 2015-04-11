@@ -70,10 +70,10 @@ func Set_direction(direction int) {
 	switch direction{
 	case DIRECTION_UP:
 		Clear_bit(MOTORDIR)
-		Write_analog(MOTOR,2800)
+		Write_analog(MOTOR,2400)
 	case DIRECTION_DOWN:
 		Set_bit(MOTORDIR)
-		Write_analog(MOTOR,2800)
+		Write_analog(MOTOR,2400)
 	case DIRECTION_STOP:
 		Write_analog(MOTOR,0)
 	}

@@ -33,14 +33,9 @@ type config struct {
 	remoteAddr string
 	isMaster   bool
 }
-type ClientStatus struct {
-	ID       int
-	Active   bool
-	IsMaster bool
-}
 
 func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{},
-	status_ch chan ClientStatus) (localId int, err error) {
+	status_ch chan tcp.ClientStatus) (localId int, err error) {
 
 	udpSend_ch = make(chan udp.UdpPacket, 1)
 	udpReceive_ch = make(chan udp.UdpPacket, 1)
@@ -56,7 +51,7 @@ func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{},
 		//return
 		println(err.Error())
 	}
-	go cStatusHandler(status_ch)
+	go clientStatusHandler(status_ch)
 	go startNetwConfig(status_ch)
 	return localID, err
 }
@@ -125,22 +120,22 @@ func configMaster() {
 	}
 }
 
-func cStatusHandler(status_ch chan ClientStatus) {
+func clientStatusHandler(status_ch chan tcp.ClientStatus) {
 	for {
 		cStatus := <-clientStatus_ch
 		println(cStatus.String())
 
 		if !isMaster && cStatus.Active == false {
-			status_ch <- ClientStatus{cStatus.ID, cStatus.Active, false}
+			status_ch <- cStatus
 			stopDrainUdp = true
 			go startNetwConfig(status_ch)
 
 		} else if cStatus.ID == localID {
 			stopAnnounceMaster = true
-			status_ch <- ClientStatus{localID, cStatus.Active, false}
+			status_ch <- cStatus
 			go startNetwConfig(status_ch)
 		} else {
-			status_ch <- ClientStatus{cStatus.ID, cStatus.Active, false}
+			status_ch <- cStatus
 		}
 	}
 }

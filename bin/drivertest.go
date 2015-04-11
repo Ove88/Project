@@ -14,7 +14,7 @@ func main(){
 	// Initialize variables
 	sOrder_ch := make(chan elevator.Order,2)
 	rOrder_ch := make(chan elevator.Order,2)
-	pos_ch:=make(chan elevator.Pos)
+	pos_ch:=make(chan elevator.Position)
 	
 	// Initialize hardware
 	elevator.Init(sOrder_ch,rOrder_ch,pos_ch)
@@ -38,7 +38,7 @@ func main(){
 	//sOrder_ch<-elevator.Order{false,1,0}
     for{
 		pos:=<-pos_ch
-		println("pos:"+strconv.Itoa(pos.LastPos))
+		println("pos:"+strconv.Itoa(pos.LastPos)+ " currentdirection:"+strconv.Itoa(pos.Direction))
 		//order:=<-rOrder_ch
 		//println("order:"+strconv.Itoa(order.Floor))
 		//if order.Internal{

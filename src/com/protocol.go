@@ -28,8 +28,20 @@ func (pr headerProtocol) Decode(buffer []byte) (tcp.IDable, bool) {
 	data, typeOfMessage, received := pr.unwrapMessage()
 	if received {
 		switch typeOfMessage {
-		case "ElevData":
-			var message ElevData
+		case "ElevUpdate":
+			var message ElevUpdate
+			json.Unmarshal(data, &message)
+			return message, received
+		case "Order":
+			var message Order
+			json.Unmarshal(data, &message)
+			return message, received
+		case "Ack":
+			var message Ack
+			json.Unmarshal(data, &message)
+			return message, received
+		case "Orders":
+			var message Orders
 			json.Unmarshal(data, &message)
 			return message, received
 		}

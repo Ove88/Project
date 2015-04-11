@@ -5,37 +5,41 @@ import (
 )
 
 type ElevUpdate struct {
-	TransID   int
-	RecvID    int
-	State     int
-	Position  int
-	Direction string
+	MessageID 	int
+	SendID   	int
+	RecvID    	int
+	LastPosition int
+	Direction 	int
 }
 
 func (e ElevUpdate) RemoteID() int {
 	return e.RecvID
 }
 func (e ElevUpdate) String() string {
-	return "TID:" + strconv.Itoa(e.TransID) + ", RecvID:" +
+	return "TID:" + strconv.Itoa(e.SendID) + ", RecvID:" +
 		strconv.Itoa(e.RecvID) + ", State:" + e.Direction
 }
 
 type Order struct {
-	TransID   int
-	RecvID    int
-	Floor     int
-	Direction string
+	MessageID 	int
+	SendID   	int
+	RecvID    	int
+	Internal 	bool
+	Floor     	int
+	Direction 	int
 }
 
 type Ack struct {
-	TransID int
-	RecvID  int
+	MessageID 	int
+	SendID 		int
+	RecvID  		int
 }
 
 type Orders struct {
-	TransID int
-	RecvID  int
-	Orders  *[]Order
+	MessageID 	int
+	SendID 		int
+	RecvID  		int
+	Orders  		*[]Order
 }
 
 /////   Sett inn flere datastructer her   /////

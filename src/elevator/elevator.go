@@ -4,7 +4,7 @@ package elevator
 import (
 	"elevator/driver"
 	"time"
-	"strconv"
+	//"strconv"
 	
 )
 const (
@@ -22,6 +22,7 @@ var (
 	currentPosition int
 	currentDirection int
 	doorOpen bool
+	stopped bool
 )
 
 type Order struct {
@@ -35,20 +36,21 @@ type ButtonPush struct {
 	Button 	int
 }
 
-type Pos struct{
+type Position struct{
 	LastPos int
 	Direction int
 }
 // Styrer heisen. Leser knapper og setter posisjon
 
-func Init(sOrder_ch <-chan Order, rOrder_ch chan<- Order, pos_ch chan Pos) {
+func Init(sOrder_ch <-chan Order, rOrder_ch chan<- Order, pos_ch chan Position) {
+	stopped = false
 	driver.Set_direction(driver.DIRECTION_STOP)
 	button_ch = make(chan ButtonPush)
 	elevPos_ch=make(chan Order)
 	doorOpen_ch = make(chan bool)
 	go readElevatorPosition(pos_ch)
 	go setFloorLamp()
-	go setStopLamp()
+	go setStopLamp(pos_ch)
 	go buttonReader()
 	go orderGenerator(rOrder_ch)
 	go orderHandler(sOrder_ch)
@@ -68,22 +70,26 @@ func doorHandler(){
 
 func orderHandler(sOrder_ch <-chan Order) {
 	for{
-		order:=<-sOrder_ch
-		currentPosition = driver.Get_floor_sensor_signal()
-		//println(strconv.Itoa(currentPosition))
-		if doorOpen{
+		order:=<-sOrder_ch		
+		for doorOpen{
 			time.Sleep(1*time.Millisecond)
-			continue
-		}else{
-		if order.Floor < currentPosition{
+		}
+		if !stopped{
+		if (order.Floor == currentPosition) && currentDirection != -1{
+			if currentDirection == 1{
+				driver.Set_direction(driver.DIRECTION_UP)
+			}else{
+				driver.Set_direction(driver.DIRECTION_DOWN)
+			}
+		}else if order.Floor < currentPosition{
 			currentDirection = 1
 			driver.Set_direction(driver.DIRECTION_DOWN)
 		}else if order.Floor > currentPosition {
 			driver.Set_direction(driver.DIRECTION_UP)
 			currentDirection = 0
 		}
-		}
 		elevPos_ch<-order
+	  }
 	}
 }
 
@@ -91,15 +97,12 @@ func orderGenerator(rOrder_ch chan<- Order) {
 	for{
 		buttonPush := <- button_ch
 		if buttonPush.Button == 2{
-			println("ButtonPush.Floor: "+ strconv.Itoa(buttonPush.Floor) + ", CurrentPosition: "+strconv.Itoa(currentPosition))
+			//println("ButtonPush.Floor: "+ strconv.Itoa(buttonPush.Floor) + ", CurrentPosition: "+strconv.Itoa(currentPosition))
 			if buttonPush.Floor > currentPosition{
-				println("er her 4")
 				rOrder_ch<-Order{true,buttonPush.Floor,0}
 			}else if buttonPush.Floor < currentPosition{
-				println("er her 5")
 				rOrder_ch<-Order{true,buttonPush.Floor,1}
 			}else{
-				println("er her 6")
 				doorOpen_ch<-true
 			}
 		}else{
@@ -109,23 +112,26 @@ func orderGenerator(rOrder_ch chan<- Order) {
 	}
 }
 
-func readElevatorPosition(pos_ch chan Pos){
+func readElevatorPosition(pos_ch chan Position){
 	var pos,lastPos int
-	for{
-		order:=<-elevPos_ch
-		
+	var arrived bool
+	var order Order
+	arrived = false
 		for{
-			println("er her 1")
+			select{
+				case order=<-elevPos_ch:
+				arrived = false
+				continue
+				case <-time.After(1*time.Millisecond):
+			
 			pos = driver.Get_floor_sensor_signal()
 			if pos!= -1 && lastPos!=pos{
-				println("er her 2")
 				currentPosition = pos
-				println("currentPos:"+strconv.Itoa(currentPosition))
-		      	pos_ch<-Pos{pos,currentDirection}
+				//println("currentPos:"+strconv.Itoa(currentPosition))
+		      	pos_ch<-Position{pos,currentDirection}
 			}
-			//println(strconv.Itoa(pos))
-			if pos == order.Floor{
-				println("er her 3")
+			if pos == order.Floor && !arrived{
+				arrived = true
 				driver.Set_direction(driver.DIRECTION_STOP)
 				if order.Internal{
 					driver.Set_button_indicator(2,pos,false)
@@ -134,8 +140,8 @@ func readElevatorPosition(pos_ch chan Pos){
 				}
 				currentDirection = -1
 				doorOpen_ch<-true
-				pos_ch<-Pos{pos,currentDirection}
-				break
+				pos_ch<-Position{pos,currentDirection}
+				
 			}
 			time.Sleep(1 * time.Millisecond)
 			lastPos = pos
@@ -155,20 +161,21 @@ func SetButtonLamp(button, floor int){
 		driver.Set_button_indicator(button,floor,true)
 }
 
-func setStopLamp() {
-	var stoplamp bool
+func setStopLamp(pos_ch chan Position) {
 	var flag bool
 	for {
 		stopBtn := driver.Get_stop_signal()
 		if stopBtn && !flag {
-			if !stoplamp {
-				stoplamp = true
-				driver.Set_stop_lamp(stoplamp)
+			if !stopped {
+				stopped = true
+				driver.Set_stop_lamp(stopped)
 				driver.Set_direction(driver.DIRECTION_STOP)
+				pos_ch<-Position{-1,-1}
 			} else {
-				stoplamp = false
-				driver.Set_stop_lamp(stoplamp)
+				stopped = false
+				driver.Set_stop_lamp(stopped)
 				driver.Set_direction(currentDirection)
+				pos_ch<-Position{currentPosition,currentDirection}
 			}
 			flag = true
 		}else if !stopBtn && flag{

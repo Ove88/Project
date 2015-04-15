@@ -29,8 +29,8 @@ type client struct {
 }
 
 type ClientStatus struct {
-	ID     int
-	Active bool
+	ID       int
+	Active   bool
 	IsMaster bool
 }
 
@@ -108,7 +108,7 @@ func listenForClients(listenConn *net.TCPListener, receive_ch chan<- interface{}
 		clientExists = false
 		conn, err := listenConn.AcceptTCP()
 		if err != nil {
-			cStatus_ch <- ClientStatus{getClientId(listenConn), false,false}
+			cStatus_ch <- ClientStatus{getClientId(listenConn), false, false}
 			break
 		}
 		id := getClientId(conn)
@@ -118,7 +118,7 @@ func listenForClients(listenConn *net.TCPListener, receive_ch chan<- interface{}
 				clients[i].active = true
 				clientExists = true
 				go receivePackets(clients[i], receive_ch, newpr.NewProtocol(), newpr.GetBufferSize())
-				cStatus_ch <- ClientStatus{clients[i].id, clients[i].active,false}
+				cStatus_ch <- ClientStatus{clients[i].id, clients[i].active, false}
 				break
 			}
 		}
@@ -126,7 +126,7 @@ func listenForClients(listenConn *net.TCPListener, receive_ch chan<- interface{}
 			client_ := client{true, getClientId(conn), conn}
 			clients = append(clients, &client_)
 			go receivePackets(&client_, receive_ch, newpr.NewProtocol(), newpr.GetBufferSize())
-			cStatus_ch <- ClientStatus{client_.id, client_.active,false}
+			cStatus_ch <- ClientStatus{client_.id, client_.active, false}
 
 		}
 	}

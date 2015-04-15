@@ -5,11 +5,11 @@ import (
 )
 
 type ElevUpdate struct {
-	MessageID 	int
-	SendID   	int
-	RecvID    	int
+	MessageID    int
+	SendID       int
+	RecvID       int
 	LastPosition int
-	Direction 	int
+	Direction    int
 }
 
 func (e ElevUpdate) RemoteID() int {
@@ -21,25 +21,25 @@ func (e ElevUpdate) String() string {
 }
 
 type Order struct {
-	MessageID 	int
-	SendID   	int
-	RecvID    	int
-	Internal 	bool
-	Floor     	int
-	Direction 	int
+	MessageID int
+	SendID    int
+	RecvID    int
+	Internal  bool
+	Floor     int
+	Direction int
 }
 
 type Ack struct {
-	MessageID 	int
-	SendID 		int
-	RecvID  		int
+	MessageID int
+	SendID    int
+	RecvID    int
 }
 
 type Orders struct {
-	MessageID 	int
-	SendID 		int
-	RecvID  		int
-	Orders  		*[]Order
+	MessageID int
+	SendID    int
+	RecvID    int
+	Orders    *[]Order
 }
 
 /////   Sett inn flere datastructer her   /////

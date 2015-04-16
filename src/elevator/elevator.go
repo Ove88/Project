@@ -158,8 +158,8 @@ func setFloorLamp() {
 	}
 }
 
-func SetButtonLamp(button, floor int) {
-	driver.Set_button_indicator(button, floor, true)
+func SetButtonLamp(button, floor int, state bool) {
+	driver.Set_button_indicator(button, floor, state)
 }
 
 func setStopLamp(pos_ch chan Position) {

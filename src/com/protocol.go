@@ -12,6 +12,7 @@ const (
 	protocolType     string = "header"
 	prefixBufferSize int    = 5
 	prefixTypeSize   int    = 20
+	//useMessageHeader bool   = true
 )
 
 type headerProtocol struct {
@@ -59,6 +60,12 @@ func (e ElevUpdate) String() string {
 	return "ElevUpdate:" + strconv.Itoa(e.Direction) + "," + strconv.Itoa(e.LastPosition)
 }
 
+type ButtonLamp struct {
+	Button int
+	Floor  int
+	State  bool
+}
+
 /////   Sett inn flere datastructer her   /////
 
 func (pr headerProtocol) Decode(buffer []byte) (interface{}, bool) {
@@ -69,25 +76,31 @@ func (pr headerProtocol) Decode(buffer []byte) (interface{}, bool) {
 	if received {
 		var message Header
 		json.Unmarshal(rawMessage, &message)
-		rawData, _ := json.Marshal(message.Data)
+		rawMessage, _ = json.Marshal(message.Data)
 
 		switch typeOfMessage {
 		case "ElevUpdate":
 			var data ElevUpdate
-			json.Unmarshal(rawData, &data)
+			json.Unmarshal(rawMessage, &data)
 			message.Data = data
 			return message, received
 		case "Order":
 			var data Order
-			json.Unmarshal(rawData, &data)
+			json.Unmarshal(rawMessage, &data)
 			message.Data = data
 			return message, received
 		case "Orders":
 			var data Orders
-			json.Unmarshal(rawData, &data)
+			json.Unmarshal(rawMessage, &data)
+			message.Data = data
+			return message, received
+		case "ButtonLamp":
+			var data ButtonLamp
+			json.Unmarshal(rawMessage, &data)
 			message.Data = data
 			return message, received
 		}
+
 		//// Legg til ny case for hver nye datastruct her ////
 	}
 	return nil, received

@@ -59,8 +59,8 @@ func main() {
 	go transactionManager()
 	go orderManager()
 	go elevPositionManager()
-	go clientStatusManager()
-	<-wait
+	clientStatusManager()
+	//<-wait
 }
 
 func messageHandler() {

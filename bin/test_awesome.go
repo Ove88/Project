@@ -70,17 +70,17 @@ func status_listener() {
 		status := <-status_ch
 		for n, _ := range clients {
 			if status.ID == clients[n].Id {
-				//			println(strconv.FormatBool(clients[n].Active))
+
 				clients[n].Active = status.Active
-				//			println(strconv.FormatBool(clients[n].Active))
+				if status.IsMaster {
+					println(strconv.Itoa(status.ID) + " er master")
+				}
+
 				exists = true
 				break
 			}
 		}
-		if status.ID == localID {
-			println("er master:" + strconv.FormatBool(status.IsMaster))
-
-		} else if !exists {
+		if !exists {
 			client_ := Client{status.ID, status.Active}
 			clients = append(clients, &client_)
 			go send(&client_)

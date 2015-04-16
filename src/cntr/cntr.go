@@ -52,7 +52,8 @@ func main() {
 
 	localID, _ := com.Init(send_ch, receive_ch, clientStatus_ch, maxNumberOfClients)
 	println(localID)
-	clients[0] = &Client{localID, false, false, 0, 0, make([]*com.Order, 0, maxOrderSize)}
+	clients = append(
+		clients, &Client{localID, false, false, 0, 0, make([]*com.Order, 0, maxOrderSize)})
 	elevator.Init(lOrderSend_ch, lOrderReceive_ch, elevStatus_ch)
 
 	go messageHandler()
@@ -148,9 +149,8 @@ func clientStatusManager() {
 			}
 		}
 		if !clientExists {
-			client := Client{
-				status.ID, status.Active, status.IsMaster, 0, 0, make([]*Order, 0, maxOrderSize)}
-			clients = append(clients, &client)
+			clients = append(clients, Client{
+				status.ID, status.Active, status.IsMaster, 0, 0, make([]*Order, 0, maxOrderSize)})
 		}
 	}
 }

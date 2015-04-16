@@ -31,7 +31,7 @@ func main() {
 	wait := make(chan bool)
 	localID, _ = com.Init(send_ch, receive_ch, status_ch, maxNumberOfClients)
 	println(localID)
-	clients[0] = &Client{localID, false}
+	clients = append(clients, &Client{localID, false})
 
 	go status_listener()
 	go receive()

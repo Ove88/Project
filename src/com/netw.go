@@ -12,7 +12,6 @@ const (
 	localUdpPort         int = 15000
 	broadcastUdpPort     int = 16000
 	tcpReceiveBufferSize int = 1024
-	maxNumberOfClients   int = 10
 )
 
 var (
@@ -27,6 +26,7 @@ var (
 	tcpReceive_ch      chan<- interface{}
 	clientStatus_ch    chan tcp.ClientStatus
 	config_ch          chan config
+	maxNumberOfClients int
 )
 
 type config struct {
@@ -35,7 +35,7 @@ type config struct {
 }
 
 func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{},
-	status_ch chan tcp.ClientStatus) (localId int, err error) {
+	status_ch chan tcp.ClientStatus, maxNClients int) (localId int, err error) {
 
 	udpSend_ch = make(chan udp.UdpPacket, 1)
 	udpReceive_ch = make(chan udp.UdpPacket, 1)
@@ -43,27 +43,27 @@ func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{},
 	config_ch = make(chan config)
 	tcpSend_ch = send_ch
 	tcpReceive_ch = receive_ch
+	maxNumberOfClients = maxNClients
 
 	localIP, err = udp.Init(broadcastUdpPort, localUdpPort, udpReceive_ch, udpSend_ch)
 	localID, err = strconv.Atoi(strings.Split(localIP, ".")[3])
-	println(localID)
+
 	if err != nil {
-		//return
-		println(err.Error())
+		return
 	}
 	go clientStatusHandler(status_ch)
 	go startNetwConfig(status_ch)
 	return localID, err
 }
 
-func startNetwConfig(status_ch chan ClientStatus) {
+func startNetwConfig(status_ch chan tcp.ClientStatus) {
 
 	newpr := NewHeaderProtocol{tcpReceiveBufferSize}
 	go configMaster()
 
 	configData := <-config_ch
 	isMaster = configData.isMaster
-	status_ch <- ClientStatus{localID, true, isMaster}
+	status_ch <- tcp.ClientStatus{localID, true, isMaster}
 
 	if isMaster {
 		remoteTcpPort, _ := tcp.StartServer(
@@ -128,10 +128,11 @@ func clientStatusHandler(status_ch chan tcp.ClientStatus) {
 		if !isMaster && cStatus.Active == false {
 			status_ch <- cStatus
 			stopDrainUdp = true
-			go startNetwConfig(status_ch)
+			go startNetwConfig(status_ch) //Bare en gang?
 
-		} else if cStatus.ID == localID {
+		} else if cStatus.ID == -1 {
 			stopAnnounceMaster = true
+			cStatus.ID = localID
 			status_ch <- cStatus
 			go startNetwConfig(status_ch)
 		} else {

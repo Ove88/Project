@@ -22,27 +22,70 @@ type NewHeaderProtocol struct {
 	Buffersize int
 }
 
-func (pr headerProtocol) Decode(buffer []byte) (tcp.IDable, bool) {
+type Header struct {
+	MessageID int
+	SendID    int
+	RecvID    int
+	Data      interface{}
+}
+
+func (h Header) RemoteID() int {
+	return h.RecvID
+}
+func (h Header) GetType() string {
+	return strings.Split(reflect.TypeOf(h.Data).String(), ".")[1]
+}
+
+type Order struct {
+	Internal  bool
+	Floor     int
+	Direction int
+}
+
+func (o Order) String() string {
+	return "Order:" + strconv.Itoa(o.Direction) + "," + strconv.Itoa(o.Floor)
+}
+
+type Orders struct {
+	Orders []*Order
+}
+
+type ElevUpdate struct {
+	LastPosition int
+	Direction    int
+}
+
+func (e ElevUpdate) String() string {
+	return "ElevUpdate:" + strconv.Itoa(e.Direction) + "," + strconv.Itoa(e.LastPosition)
+}
+
+/////   Sett inn flere datastructer her   /////
+
+func (pr headerProtocol) Decode(buffer []byte) (interface{}, bool) {
 
 	pr.tempBuffer = append(pr.tempBuffer, buffer...)
-	data, typeOfMessage, received := pr.unwrapMessage()
+	rawMessage, typeOfMessage, received := pr.unwrapMessage()
+
 	if received {
+		var message Header
+		json.Unmarshal(rawMessage, &message)
+		rawData, _ := json.Marshal(message.Data)
+
 		switch typeOfMessage {
 		case "ElevUpdate":
-			var message ElevUpdate
-			json.Unmarshal(data, &message)
+			var data ElevUpdate
+			json.Unmarshal(rawData, &data)
+			message.Data = data
 			return message, received
 		case "Order":
-			var message Order
-			json.Unmarshal(data, &message)
-			return message, received
-		case "Ack":
-			var message Ack
-			json.Unmarshal(data, &message)
+			var data Order
+			json.Unmarshal(rawData, &data)
+			message.Data = data
 			return message, received
 		case "Orders":
-			var message Orders
-			json.Unmarshal(data, &message)
+			var data Orders
+			json.Unmarshal(rawData, &data)
+			message.Data = data
 			return message, received
 		}
 		//// Legg til ny case for hver nye datastruct her ////
@@ -52,7 +95,7 @@ func (pr headerProtocol) Decode(buffer []byte) (tcp.IDable, bool) {
 
 func (pr headerProtocol) Encode(message tcp.IDable) []byte {
 	data, _ := json.Marshal(message)
-	typeOfMessage := strings.Split(reflect.TypeOf(message).String(), ".")[1]
+	typeOfMessage := message.GetType() //strings.Split(reflect.TypeOf(message).String(), ".")[1]
 	return pr.wrapMessage(data, typeOfMessage)
 }
 

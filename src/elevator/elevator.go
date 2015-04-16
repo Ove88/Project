@@ -37,8 +37,8 @@ type ButtonPush struct {
 }
 
 type Position struct {
-	LastPos   int
-	Direction int
+	LastPosition int
+	Direction    int
 }
 
 // Styrer heisen. Leser knapper og setter posisjon

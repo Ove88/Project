@@ -12,7 +12,7 @@ const maxNumberOfClients int = 10
 var (
 	send_ch    chan tcp.IDable
 	receive_ch chan interface{}
-	status_ch  chan com.Status
+	status_ch  chan tcp.ClientStatus
 	active     bool
 	localID    int
 	clients    []*Client
@@ -27,9 +27,9 @@ func main() {
 	clients = make([]*Client, 0, maxNumberOfClients)
 	send_ch = make(chan tcp.IDable, 1)
 	receive_ch = make(chan interface{})
-	status_ch = make(chan com.Status, 1)
+	status_ch = make(chan tcp.ClientStatus, 1)
 	wait := make(chan bool)
-	localID, _ = com.Init(send_ch, receive_ch, status_ch)
+	localID, _ = com.Init(send_ch, receive_ch, status_ch, maxNumberOfClients)
 	// if err != nil {
 	// 	println(err.Error())
 	// }
@@ -40,7 +40,7 @@ func main() {
 }
 
 func send(client_ *Client) {
-	message := com.ElevData{1, client_.Id, 4, 2, "up"}
+	message := com.Header{1, localID, client_.Id, com.ElevUpdate{4, 0}}
 	for {
 		//	println("send:" + strconv.FormatBool(client_.Active))
 		if client_.Active {
@@ -54,8 +54,9 @@ func send(client_ *Client) {
 func receive() {
 	for {
 		message := <-receive_ch
-		switch data2 := message.(type) {
-		case com.ElevData:
+		m := message.(com.Header)
+		switch data2 := m.Data.(type) {
+		case com.ElevUpdate:
 			println("data mottatt:" + data2.String())
 		default:
 			println("default")

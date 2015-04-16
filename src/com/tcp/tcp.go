@@ -5,11 +5,10 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	//"time"
 )
 
 type Protocol interface {
-	Decode(buffer []byte) (message IDable, received bool)
+	Decode(buffer []byte) (message interface{}, received bool)
 	Encode(message IDable) (buffer []byte)
 }
 
@@ -20,6 +19,7 @@ type NewProtocol interface {
 
 type IDable interface {
 	RemoteID() int
+	GetType() string
 }
 
 type client struct {
@@ -108,7 +108,7 @@ func listenForClients(listenConn *net.TCPListener, receive_ch chan<- interface{}
 		clientExists = false
 		conn, err := listenConn.AcceptTCP()
 		if err != nil {
-			cStatus_ch <- ClientStatus{getClientId(listenConn), false, false}
+			cStatus_ch <- ClientStatus{-1, false, false} // If network is lost. Does it work?
 			break
 		}
 		id := getClientId(conn)
@@ -153,11 +153,10 @@ func receivePackets(client_ *client, receive_ch chan<- interface{}, pr Protocol,
 	for {
 		n, err := client_.conn.Read(buffer)
 		if err != nil {
-
 			if nTries > 9 {
 				client_.active = false
 				client_.conn.Close()
-				cStatus_ch <- ClientStatus{client_.id, client_.active}
+				cStatus_ch <- ClientStatus{client_.id, client_.active, false}
 				break
 			}
 			nTries++

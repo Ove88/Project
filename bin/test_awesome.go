@@ -30,10 +30,9 @@ func main() {
 	status_ch = make(chan tcp.ClientStatus, 1)
 	wait := make(chan bool)
 	localID, _ = com.Init(send_ch, receive_ch, status_ch, maxNumberOfClients)
-	// if err != nil {
-	// 	println(err.Error())
-	// }
-	//localID = stat.ID
+	println(localID)
+	clients[0] = Client{localID, false}
+
 	go status_listener()
 	go receive()
 	<-wait

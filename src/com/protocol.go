@@ -38,6 +38,7 @@ func (h Header) GetType() string {
 }
 
 type Order struct {
+	OriginID  int
 	Internal  bool
 	Floor     int
 	Direction int
@@ -48,7 +49,8 @@ func (o Order) String() string {
 }
 
 type Orders struct {
-	Orders []*Order
+	ClientID int
+	Orders   []*Order
 }
 
 type ElevUpdate struct {

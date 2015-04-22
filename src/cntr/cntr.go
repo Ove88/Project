@@ -117,14 +117,13 @@ func transactionManager(message *com.Header) bool {
 	case elevator.Order: // Local order
 		if clients[0].Active {
 			if clients[0].IsMaster {
-				client := calc(&elevToCom(&data))
-				return orderUpdater(&elevToCom(&data), &client, true)
+				client := calc(elevToCom(&data))
+				return orderUpdater(elevToCom(&data), &client, true)
 			} else {
 				message.RecvID = masterID
 				send_ch <- message
 			}
 		}
-		return true
 	case elevator.Position: // Elevator has changed position
 		clients[0].LastPosition = data.LastPosition
 		clients[0].Direction = data.Direction
@@ -146,7 +145,6 @@ func transactionManager(message *com.Header) bool {
 			data.Direction == -1 { // Elevator has reached its destination
 			// Betjene interne ordrer?
 		}
-		return true
 	case com.Order: // Remote order from client
 		client := calc(&data)
 		return orderUpdater(&data, &client, true)
@@ -166,12 +164,11 @@ func transactionManager(message *com.Header) bool {
 				break
 			}
 		}
-		return true
 	case com.Orders: // Order update from master
 		clientExists := false
 		if !clients[0].IsMaster {
 			for i, client := range clients {
-				if client.ID == message.Data.ClientID {
+				if client.ID == data.ClientID {
 					clients[i].Orders = data.Orders
 					clientExists = true
 					if i == 0 { // Order for this elevator
@@ -184,12 +181,12 @@ func transactionManager(message *com.Header) bool {
 				}
 			}
 			if !clientExists { //Create new client
-				clients = append(clients, *Client{
+				clients = append(clients, &Client{
 					data.ClientID, false, false, 0, 0, data.Orders})
 			}
 		}
-		return true
 	}
+	return true
 }
 
 func orderUpdater(order *com.Order, client *Client, isNewOrder bool) bool {
@@ -207,7 +204,7 @@ func orderUpdater(order *com.Order, client *Client, isNewOrder bool) bool {
 			if ack.MessageID != orderUpdate.MessageID || ack.SendID != client.ID {
 				return false
 			}
-		case time.After(1 * time.Millisecond):
+		case <-time.After(1 * time.Millisecond):
 			return false
 		}
 	}
@@ -255,17 +252,15 @@ func clientStatusManager() {
 				if clients[0].IsMaster && clients[0].Active && n != 0 {
 
 					if status.Active { // Update existing client with order lists
-						message := com.Header{newMessageID(), clients[0].ID, status.ID, com.Orders{0, nil}}
-						buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, com.ButtonLamp{0, 0, true}}
+						message := com.Header{newMessageID(), clients[0].ID, status.ID, nil}
+						buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, nil}
 
 						for _, client := range clients {
-							message.Data.ClientID = client.ID
-							message.Data.Orders = client.Orders
+							message.Data = com.Orders{client.ID, client.Orders}
 							send_ch <- message
 							for _, order := range client.Orders {
 								if !order.Internal {
-									buttonLightUpdate.Data.Button = order.Direction
-									buttonLightUpdate.Data.Floor = order.Floor
+									buttonLightUpdate.Data = com.ButtonLamp{order.Direction, order.Floor}
 									send_ch <- buttonLightUpdate
 								}
 							}
@@ -286,17 +281,15 @@ func clientStatusManager() {
 				status.ID, status.Active, status.IsMaster, 0, 0, make([]*Order, 0, maxOrderSize)})
 
 			if clients[0].IsMaster {
-				message := com.Header{newMessageID(), clients[0].ID, status.ID, com.Orders{0, nil}}
-				buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, com.ButtonLamp{0, 0, true}}
+				message := com.Header{newMessageID(), clients[0].ID, status.ID, nil}
+				buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, nil}
 
 				for _, client := range clients { // Update new client with order lists
-					message.Orders.ClientID = client.ID
-					message.Data.Orders = client.Orders
+					message.Data = com.Orders{client.ID, client.Orders}
 					send_ch <- message
 					for _, order := range client.Orders { // Set correct button lights
 						if !order.Internal {
-							buttonLightUpdate.Data.Button = order.Direction
-							buttonLightUpdate.Data.Floor = order.Floor
+							buttonLightUpdate.Data = com.ButtonLamp{order.Direction, order.Floor}
 							send_ch <- buttonLightUpdate
 						}
 					}

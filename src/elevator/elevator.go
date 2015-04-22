@@ -60,7 +60,7 @@ func doorHandler() {
 		<-doorOpen_ch
 		doorOpen = true
 		driver.Set_door_open_lamp(true)
-		time.Sleep(secDoorOpen * time.Second)
+		time.Sleep(3 * time.Second)
 		driver.Set_door_open_lamp(false)
 		doorOpen = false
 	}

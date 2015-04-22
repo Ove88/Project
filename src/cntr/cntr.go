@@ -1,14 +1,18 @@
-package cntr
+package main
 
 import (
 	"com"
+	"com/tcp"
 	"elevator"
-	"tcp"
+	"math"
 )
 
 const (
-	maxOrderSize       int = 50
-	maxNumberOfClients int = 10
+	maxOrderSize       int     = 50
+	maxNumberOfClients int     = 10
+	nFloors            int     = 4
+	elevConst          float32 = nFloors * (1 / 4)
+	elevEstimate       float32 = 1 / 2
 )
 
 var (
@@ -55,11 +59,10 @@ func main() {
 	println(localID)
 	clients = append(
 		clients, &Client{localID, false, false, 0, 0, make([]*com.Order, 0, maxOrderSize)})
-	elevator.Init(lOrderSend_ch, lOrderReceive_ch, elevStatus_ch)
+	elevator.Init(lOrderSend_ch, lOrderReceive_ch, elevPos_ch)
 
 	go netwMessageHandler()
-	go messageSelector()
-	go elevPositionManager()
+	go channelSelector()
 	clientStatusManager()
 }
 
@@ -72,16 +75,6 @@ func netwMessageHandler() {
 			println("buttonLamp")
 			elevator.SetButtonLamp(
 				message.Data.Button, message.Data.Floor, message.Data.State)
-
-		// case com.ElevUpdate:
-		// 	println("elevData")
-		// 	elevUpdate_ch <- message
-		// case com.Order:
-		// 	println("rOrder")
-		// 	order_ch <- message
-		// case com.Orders:
-		// 	println("Orders")
-		// 	orders_ch <- message
 		case nil:
 			println("Ack")
 			ack_ch <- message
@@ -91,7 +84,7 @@ func netwMessageHandler() {
 		}
 	}
 }
-func messageSelector() {
+func channelSelector() {
 	for {
 		select {
 		case message := <-order_ch:
@@ -107,6 +100,10 @@ func messageSelector() {
 			println("recalc")
 			transactionManager(&com.Header{
 				newMessageID(), clients[0].ID, 0, order})
+		case pos := <-elevPos_ch: // Elevator position has changed
+			println("elevPos")
+			transactionManager(&com.Header{
+				newMessageID(), clients[0].ID, 0, pos})
 		}
 	}
 }
@@ -116,16 +113,35 @@ func transactionManager(message *com.Header) bool {
 	switch message.Data.(type) {
 
 	case elevator.Order: // Local order
-		if !clients[0].IsMaster {
-			if clients[0].Active {
+		if clients[0].Active {
+			if clients[0].IsMaster {
+				client := calc(&message.Data)
+				return orderUpdater(&message.Data, &client, true)
+			} else {
 				message.RecvID = masterID
 				send_ch <- message
-			} else {
-				client := calc(&message.Data)
 			}
-		} else {
-			client := calc(&message.Data)
-			return orderUpdater(&message.Data, &client, true)
+		}
+	case elevator.Position: // Elevator has changed position
+		clients[0].LastPosition = message.Data.LastPosition
+		clients[0].Direction = message.Data.Direction
+
+		if clients[0].Active {
+
+			if clients[0].IsMaster {
+
+				if message.Data.LastPosition == clients[0].Orders[0].Floor &&
+					message.Data.Direction == -1 { // Elevator has reached its destination
+					clients[0].Orders = clients[0].Orders[1:]
+					lOrderSend_ch <- clients[0].Orders[0]
+				}
+			} else {
+				message.RecvID = masterID
+				send_ch <- message
+			}
+		} else if message.Data.LastPosition == clients[0].Orders[0].Floor &&
+			message.Data.Direction == -1 { // Elevator has reached its destination
+			// Betjene interne ordrer?
 		}
 	case com.Order: // Remote order from client
 		client := calc(&message.Data)
@@ -133,10 +149,13 @@ func transactionManager(message *com.Header) bool {
 
 	case com.ElevUpdate: // Status update from client
 		for i, client := range clients {
+
 			if message.SendID == client.ID {
 				client[i].LastPosition = message.LastPosition
 				client[i].Direction = message.Direction
-				if message.LastPosition == client[i].Orders[0].Floor && message.Direction == -1 { // Elevator has reached its destination
+
+				if message.LastPosition == client[i].Orders[0].Floor &&
+					message.Direction == -1 { // Elevator has reached its destination
 					clients[i].Orders = clients[i].Orders[1:]
 					orderUpdater(client[i].Orders[0], clients[i], false)
 				}
@@ -152,7 +171,7 @@ func transactionManager(message *com.Header) bool {
 					clients[i].Orders = message.Data
 					clientExists = true
 					if i == 0 { // Order for this elevator
-						lOrderSend_ch <- clients[i].Orders[0]
+						lOrderSend_ch <- clients[i].Orders[0] // Update elevator with order, even if no change
 
 						send_ch <- com.Header{
 							message.MessageID, clients[0].ID, message.SendID, nil} // Ack to master
@@ -160,11 +179,9 @@ func transactionManager(message *com.Header) bool {
 					break
 				}
 			}
-			if !clientExists {
+			if !clientExists { //Create new client
 				clients = append(clients, Client{
 					message.Data.ClientID, false, false, 0, 0, message.Data})
-				// send_ch <- com.Header{
-				// 	message.MessageID, clients[0].ID, message.SendID, nil} // Ack to master
 			}
 		}
 	}
@@ -173,7 +190,7 @@ func transactionManager(message *com.Header) bool {
 func orderUpdater(order *com.Order, client *Client, isNewOrder bool) bool {
 	orderUpdate := com.Header{
 		newMessageID(), clients[0].ID, 0, com.Orders{client.ID, client.Orders}}
-	for n, client_ := range clients {
+	for n, client_ := range clients { // Update all clients with new order list
 		if n == 0 {
 			continue
 		}
@@ -191,35 +208,14 @@ func orderUpdater(order *com.Order, client *Client, isNewOrder bool) bool {
 	}
 	buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, com.ButtonLamp{
 		order.Direction, order.Floor, isNewOrder}}
-	for n, client_ := range clients {
-		if client_.ID != client.ID && order.Internal {continue}
-			buttonLightUpdate.RecvID = client.ID
-			send_ch <- buttonLightUpdate
-		
+	for n, client_ := range clients { // Set button light for all clients
+		if client_.ID != client.ID && order.Internal {
+			continue
+		}
+		buttonLightUpdate.RecvID = client.ID
+		send_ch <- buttonLightUpdate
 	}
 	return true
-}
-
-func elevPositionManager() {
-	for {
-		position := <-elevPos_ch
-		clients[0].LastPosition = position.LastPosition
-		clients[0].Direction = position.Direction
-		if !clients[0].IsMaster && clients[0].Active { // Updates master with latest position and direction
-			send_ch <- com.Header{newMessageID(), clients[0].ID, masterID, position}
-		}
-		if position.Direction < 0 { // Elevator has stopped
-			if position.LastPosition < 0 { // Stop button has been pressed
-				// 	for i, order := range clients[0].Orders {
-				// 		if !order.Internal {
-				// 			reCalc_ch <- client.Orders[0]
-				// 		}
-				// 	}
-			} else {
-				
-			}
-		}
-	}
 }
 
 func clientStatusManager() {
@@ -228,6 +224,7 @@ func clientStatusManager() {
 		clientExists = false
 		status := <-clientStatus_ch
 		for n, client := range clients {
+
 			if client.ID == status.ID {
 				clientExists = true
 				clients[n].Active = status.Active
@@ -239,7 +236,7 @@ func clientStatusManager() {
 					masterID = -1
 				}
 
-				if !clients[0].Active { // Clear button lamps if elevator goes inactive
+				if n == 0 && !status.Active { // Clear button lamps if elevator goes inactive
 					for n, client := range clients {
 						for i, order := range client.Orders {
 							if n == 0 && i == 0 {
@@ -250,47 +247,48 @@ func clientStatusManager() {
 					}
 				}
 
-				if clients[0].IsMaster && status.Active { // Update existing client with order lists
-					message := com.Header{newMessageID(), clients[0].ID, status.ID, com.Orders{0, nil}}
-					buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, com.ButtonLamp{0, 0, true}}
+				if clients[0].IsMaster && clients[0].Active && n != 0 {
 
-					for _, client := range clients {
-						message.Data.ClientID = client.ID
-						message.Data.Orders = client.Orders
-						send_ch <- message
-						for _, order := range client.Orders {
-							if !order.Internal {
-								buttonLightUpdate.Data.Button = order.Direction
-								buttonLightUpdate.Data.Floor = order.Floor
-								send_ch <- buttonLightUpdate
+					if status.Active { // Update existing client with order lists
+						message := com.Header{newMessageID(), clients[0].ID, status.ID, com.Orders{0, nil}}
+						buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, com.ButtonLamp{0, 0, true}}
+
+						for _, client := range clients {
+							message.Data.ClientID = client.ID
+							message.Data.Orders = client.Orders
+							send_ch <- message
+							for _, order := range client.Orders {
+								if !order.Internal {
+									buttonLightUpdate.Data.Button = order.Direction
+									buttonLightUpdate.Data.Floor = order.Floor
+									send_ch <- buttonLightUpdate
+								}
 							}
 						}
-					}
-				}
-
-				if !status.Active && status.ID != clients[0].ID && clients[0].IsMaster { // Recalculate orders for inactive client
-					for i, order := range clients[n].Orders {
-						if !order.Internal {
-							reCalc_ch <- client.Orders[i]
+					} else { // Recalculate orders for inactive client
+						for i, order := range clients[n].Orders {
+							if !order.Internal {
+								reCalc_ch <- client.Orders[i]
+							}
 						}
 					}
 				}
 				break
 			}
 		}
-		if !clientExists { // New client
+		if !clientExists { // New client connected
 			clients = append(clients, Client{
 				status.ID, status.Active, status.IsMaster, 0, 0, make([]*Order, 0, maxOrderSize)})
 
-			if clients[0].IsMaster { // Update new client with order lists
+			if clients[0].IsMaster {
 				message := com.Header{newMessageID(), clients[0].ID, status.ID, com.Orders{0, nil}}
 				buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, com.ButtonLamp{0, 0, true}}
 
-				for _, client := range clients {
+				for _, client := range clients { // Update new client with order lists
 					message.Orders.ClientID = client.ID
 					message.Data.Orders = client.Orders
 					send_ch <- message
-					for _, order := range client.Orders {
+					for _, order := range client.Orders { // Set correct button lights
 						if !order.Internal {
 							buttonLightUpdate.Data.Button = order.Direction
 							buttonLightUpdate.Data.Floor = order.Floor
@@ -308,19 +306,46 @@ func newMessageID() int {
 }
 
 func calc(newOrder *com.Order) Client {
-	var bestClient Client
-	var clientCost int
-	bestCost := 1000
+	var cost Cost
+
+	//var bestClient Client
+	var clientCost float32
+	bestCost := 1000.0
 
 	for _, client := range clients {
 		if ((client.LastPosition < 0) && (client.Direction < 0)) || !client.Active {
 			continue
-		} else {
-			for _, order := range client.Orders {
-				if newOrder.Direction == client.Direction {
+		} else if len(client.Orders) > 0 {
+			for n, order := range client.Orders {
+
+				if newOrder.Direction == order.Direction {
+					if client.LastPosition < newOrder.Floor < order.Floor { // Both orders is above elevator
+						clientCost = math.Abs(newOrder.Floor - client.LastPosition)
+
+					} else if newOrder.Floor <= client.LastPosition {
+						clientCost = order.Floor - client.LastPosition + (nFloors-order.Floor)*elevEstimate
+					} else {
+						clientCost = newOrder.Floor - client.LastPosition
+					}
+				} else if n < len(client.Orders)-1 {
+					continue
+				} else {
 
 				}
+
+			}
+		} else {
+			clientCost = math.Abs(newOrder.Floor - client.LastPosition)
+			if clientCost < bestCost {
+				bestCost = clientCost
+				cost = Cost{&client, clientCost, 0}
 			}
 		}
 	}
+}
+
+type Cost struct {
+	Client   *Client
+	Cost     int
+	OrderPos int
 }

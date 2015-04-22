@@ -11,7 +11,7 @@ const (
 	maxOrderSize       int     = 50
 	maxNumberOfClients int     = 10
 	nFloors            int     = 4
-	elevConst          float32 = nFloors * (1 / 4)
+	elevConst          float32 = nFloors * 0.25
 	elevEstimate       float32 = 1 / 2
 )
 
@@ -22,7 +22,7 @@ var (
 	lOrderReceive_ch chan elevator.Order
 	lOrderSend_ch    chan elevator.Order
 	elevPos_ch       chan elevator.Position
-	order_ch         chan com.Order
+	order_ch         chan com.Header
 	transaction_ch   chan interface{}
 	ack_ch           chan com.Header
 	elevUpdate_ch    chan com.Header
@@ -46,7 +46,7 @@ func main() {
 	clients = make([]*Client, 0, maxNumberOfClients)
 	send_ch = make(chan tcp.IDable, 1)
 	receive_ch = make(chan interface{}, 10)
-	clientStatus_ch = make(chan com.Status, 5)
+	clientStatus_ch = make(chan tcp.ClientStatus, 5)
 	lOrderSend_ch = make(chan elevator.Order, 5)
 	lOrderReceive_ch = make(chan elevator.Order, 5)
 	elevPos_ch = make(chan elevator.Position, 1)
@@ -68,8 +68,8 @@ func main() {
 
 func netwMessageHandler() {
 	for {
-		message := <-receive_ch
-
+		message_ := <-receive_ch
+		message := message_.(com.Header)
 		switch message.Data.(type) {
 		case com.ButtonLamp:
 			println("buttonLamp")
@@ -319,7 +319,7 @@ func calc(newOrder *com.Order) Client {
 			for n, order := range client.Orders {
 
 				if newOrder.Direction == order.Direction {
-					if client.LastPosition < newOrder.Floor < order.Floor { // Both orders is above elevator
+					if client.LastPosition < newOrder.Floor < order.Floor {
 						clientCost = math.Abs(newOrder.Floor - client.LastPosition)
 
 					} else if newOrder.Floor <= client.LastPosition {

@@ -5,6 +5,7 @@ import (
 	"com/tcp"
 	"elevator"
 	"math"
+	"time"
 )
 
 const (
@@ -116,13 +117,14 @@ func transactionManager(message *com.Header) bool {
 	case elevator.Order: // Local order
 		if clients[0].Active {
 			if clients[0].IsMaster {
-				client := calc(elevToCom(&order))
-				return orderUpdater(elevToCom(&order), &client, true)
+				client := calc(&elevToCom(&data))
+				return orderUpdater(&elevToCom(&data), &client, true)
 			} else {
 				message.RecvID = masterID
 				send_ch <- message
 			}
 		}
+		return true
 	case elevator.Position: // Elevator has changed position
 		clients[0].LastPosition = data.LastPosition
 		clients[0].Direction = data.Direction
@@ -144,6 +146,7 @@ func transactionManager(message *com.Header) bool {
 			data.Direction == -1 { // Elevator has reached its destination
 			// Betjene interne ordrer?
 		}
+		return true
 	case com.Order: // Remote order from client
 		client := calc(&data)
 		return orderUpdater(&data, &client, true)
@@ -158,12 +161,12 @@ func transactionManager(message *com.Header) bool {
 				if data.LastPosition == clients[i].Orders[0].Floor &&
 					data.Direction == -1 { // Elevator has reached its destination
 					clients[i].Orders = clients[i].Orders[1:]
-					orderUpdater(client[i].Orders[0], clients[i], false)
+					return orderUpdater(clients[i].Orders[0], clients[i], false)
 				}
 				break
 			}
 		}
-
+		return true
 	case com.Orders: // Order update from master
 		clientExists := false
 		if !clients[0].IsMaster {
@@ -177,14 +180,15 @@ func transactionManager(message *com.Header) bool {
 						send_ch <- com.Header{
 							message.MessageID, clients[0].ID, message.SendID, nil} // Ack to master
 					}
-					break
+					return true
 				}
 			}
 			if !clientExists { //Create new client
-				clients = append(clients, Client{
+				clients = append(clients, *Client{
 					data.ClientID, false, false, 0, 0, data.Orders})
 			}
 		}
+		return true
 	}
 }
 
@@ -306,12 +310,12 @@ func newMessageID() int {
 	return 1
 }
 
-func elevToCom(order *elevator.Order) *com.Order {
-	return *com.Order{order.OriginID, order.Internal, order.Floor, order.Direction}
+func elevToCom(order *elevator.Order) com.Order {
+	return com.Order{order.OriginID, order.Internal, order.Floor, order.Direction}
 }
 
-func comToElev(order *com.Order) *elevator.Order {
-	return *elevator.Order{order.OriginID, order.Internal, order.Floor, order.Direction}
+func comToElev(order *com.Order) elevator.Order {
+	return elevator.Order{order.OriginID, order.Internal, order.Floor, order.Direction}
 }
 
 func calc(newOrder *com.Order) Client {

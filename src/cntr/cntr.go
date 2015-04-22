@@ -114,10 +114,11 @@ func transactionManager(message *com.Header) bool {
 	switch data := message.Data.(type) {
 
 	case elevator.Order: // Local order
+		order := data.(com.Order)
 		if clients[0].Active {
 			if clients[0].IsMaster {
-				client := calc(&data)
-				return orderUpdater(&data, &client, true)
+				client := calc(&order)
+				return orderUpdater(&order, &client, true)
 			} else {
 				message.RecvID = masterID
 				send_ch <- message
@@ -145,17 +146,17 @@ func transactionManager(message *com.Header) bool {
 			// Betjene interne ordrer?
 		}
 	case com.Order: // Remote order from client
-		client := calc(&message.Data)
-		return orderUpdater(&message.Data, &client, true)
+		client := calc(&data)
+		return orderUpdater(&data, &client, true)
 
 	case com.ElevUpdate: // Status update from client
 		for i, client := range clients {
 
 			if message.SendID == client.ID {
-				client[i].LastPosition = data.LastPosition
-				client[i].Direction = data.Direction
+				clients[i].LastPosition = data.LastPosition
+				clients[i].Direction = data.Direction
 
-				if data.LastPosition == client[i].Orders[0].Floor &&
+				if data.LastPosition == clients[i].Orders[0].Floor &&
 					data.Direction == -1 { // Elevator has reached its destination
 					clients[i].Orders = clients[i].Orders[1:]
 					orderUpdater(client[i].Orders[0], clients[i], false)

@@ -23,8 +23,7 @@ var (
 	lOrderReceive_ch chan elevator.Order
 	lOrderSend_ch    chan elevator.Order
 	elevPos_ch       chan elevator.Position
-	order_ch         chan com.Header
-	transaction_ch   chan interface{}
+	message_ch       chan com.Header
 	ack_ch           chan com.Header
 	elevUpdate_ch    chan com.Header
 	reCalc_ch        chan com.Order
@@ -51,9 +50,8 @@ func main() {
 	lOrderSend_ch = make(chan elevator.Order, 5)
 	lOrderReceive_ch = make(chan elevator.Order, 5)
 	elevPos_ch = make(chan elevator.Position, 1)
-	transaction_ch = make(chan interface{}, 10)
 	ack_ch = make(chan com.Header, 50)
-	order_ch = make(chan com.Header, 50)
+	message_ch = make(chan com.Header, 50)
 	elevUpdate_ch = make(chan com.Header, 100)
 	reCalc_ch = make(chan com.Order, 100)
 	localID, _ := com.Init(send_ch, receive_ch, clientStatus_ch, maxNumberOfClients)
@@ -82,14 +80,14 @@ func netwMessageHandler() {
 			ack_ch <- message
 		default:
 			println("Default")
-			order_ch <- message
+			message_ch <- message
 		}
 	}
 }
 func channelSelector() {
 	for {
 		select {
-		case message := <-order_ch:
+		case message := <-message_ch:
 			println("netwMess")
 			transactionManager(&message)
 
@@ -260,7 +258,7 @@ func clientStatusManager() {
 							send_ch <- message
 							for _, order := range client.Orders {
 								if !order.Internal {
-									buttonLightUpdate.Data = com.ButtonLamp{order.Direction, order.Floor}
+									buttonLightUpdate.Data = com.ButtonLamp{order.Direction, order.Floor, true}
 									send_ch <- buttonLightUpdate
 								}
 							}
@@ -289,7 +287,7 @@ func clientStatusManager() {
 					send_ch <- message
 					for _, order := range client.Orders { // Set correct button lights
 						if !order.Internal {
-							buttonLightUpdate.Data = com.ButtonLamp{order.Direction, order.Floor}
+							buttonLightUpdate.Data = com.ButtonLamp{order.Direction, order.Floor, true}
 							send_ch <- buttonLightUpdate
 						}
 					}
@@ -303,12 +301,18 @@ func newMessageID() int {
 	return 1
 }
 
-func elevToCom(order *elevator.Order) com.Order {
-	return com.Order{order.OriginID, order.Internal, order.Floor, order.Direction}
+func elevToCom(order *elevator.Order) *com.Order {
+	return *com.Order{order.OriginID, order.Internal, order.Floor, order.Direction}
 }
 
 func comToElev(order *com.Order) elevator.Order {
 	return elevator.Order{order.OriginID, order.Internal, order.Floor, order.Direction}
+}
+
+type Cost struct {
+	Client   *Client
+	Cost     int
+	OrderPos int
 }
 
 func calc(newOrder *com.Order) Client {
@@ -348,10 +352,4 @@ func calc(newOrder *com.Order) Client {
 			}
 		}
 	}
-}
-
-type Cost struct {
-	Client   *Client
-	Cost     int
-	OrderPos int
 }

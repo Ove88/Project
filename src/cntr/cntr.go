@@ -70,11 +70,12 @@ func netwMessageHandler() {
 	for {
 		message_ := <-receive_ch
 		message := message_.(com.Header)
-		switch message.Data.(type) {
+
+		switch data := message.Data.(type) {
 		case com.ButtonLamp:
 			println("buttonLamp")
 			elevator.SetButtonLamp(
-				message.Data.Button, message.Data.Floor, message.Data.State)
+				data.Button, data.Floor, data.State)
 		case nil:
 			println("Ack")
 			ack_ch <- message
@@ -110,28 +111,28 @@ func channelSelector() {
 
 func transactionManager(message *com.Header) bool {
 
-	switch message.Data.(type) {
+	switch data := message.Data.(type) {
 
 	case elevator.Order: // Local order
 		if clients[0].Active {
 			if clients[0].IsMaster {
-				client := calc(&message.Data)
-				return orderUpdater(&message.Data, &client, true)
+				client := calc(&data)
+				return orderUpdater(&data, &client, true)
 			} else {
 				message.RecvID = masterID
 				send_ch <- message
 			}
 		}
 	case elevator.Position: // Elevator has changed position
-		clients[0].LastPosition = message.Data.LastPosition
-		clients[0].Direction = message.Data.Direction
+		clients[0].LastPosition = data.LastPosition
+		clients[0].Direction = data.Direction
 
 		if clients[0].Active {
 
 			if clients[0].IsMaster {
 
-				if message.Data.LastPosition == clients[0].Orders[0].Floor &&
-					message.Data.Direction == -1 { // Elevator has reached its destination
+				if data.LastPosition == clients[0].Orders[0].Floor &&
+					data.Direction == -1 { // Elevator has reached its destination
 					clients[0].Orders = clients[0].Orders[1:]
 					lOrderSend_ch <- clients[0].Orders[0]
 				}
@@ -139,8 +140,8 @@ func transactionManager(message *com.Header) bool {
 				message.RecvID = masterID
 				send_ch <- message
 			}
-		} else if message.Data.LastPosition == clients[0].Orders[0].Floor &&
-			message.Data.Direction == -1 { // Elevator has reached its destination
+		} else if data.LastPosition == clients[0].Orders[0].Floor &&
+			data.Direction == -1 { // Elevator has reached its destination
 			// Betjene interne ordrer?
 		}
 	case com.Order: // Remote order from client
@@ -151,11 +152,11 @@ func transactionManager(message *com.Header) bool {
 		for i, client := range clients {
 
 			if message.SendID == client.ID {
-				client[i].LastPosition = message.LastPosition
-				client[i].Direction = message.Direction
+				client[i].LastPosition = data.LastPosition
+				client[i].Direction = data.Direction
 
-				if message.LastPosition == client[i].Orders[0].Floor &&
-					message.Direction == -1 { // Elevator has reached its destination
+				if data.LastPosition == client[i].Orders[0].Floor &&
+					data.Direction == -1 { // Elevator has reached its destination
 					clients[i].Orders = clients[i].Orders[1:]
 					orderUpdater(client[i].Orders[0], clients[i], false)
 				}
@@ -168,7 +169,7 @@ func transactionManager(message *com.Header) bool {
 		if !clients[0].IsMaster {
 			for i, client := range clients {
 				if client.ID == message.Data.ClientID {
-					clients[i].Orders = message.Data
+					clients[i].Orders = data.Orders
 					clientExists = true
 					if i == 0 { // Order for this elevator
 						lOrderSend_ch <- clients[i].Orders[0] // Update elevator with order, even if no change
@@ -181,7 +182,7 @@ func transactionManager(message *com.Header) bool {
 			}
 			if !clientExists { //Create new client
 				clients = append(clients, Client{
-					message.Data.ClientID, false, false, 0, 0, message.Data})
+					data.ClientID, false, false, 0, 0, data.Orders})
 			}
 		}
 	}

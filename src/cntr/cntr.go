@@ -5,6 +5,7 @@ import (
 	"com/tcp"
 	"elevator"
 	"math"
+	"reflect"
 )
 
 const (
@@ -117,8 +118,8 @@ func transactionManager(message *com.Header) bool {
 		order := data.(com.Order)
 		if clients[0].Active {
 			if clients[0].IsMaster {
-				client := calc(&order)
-				return orderUpdater(&order, &client, true)
+				client := calc(&elevToCom(&order))
+				return orderUpdater(&elevToCom(&order), &client, true)
 			} else {
 				message.RecvID = masterID
 				send_ch <- message
@@ -135,7 +136,7 @@ func transactionManager(message *com.Header) bool {
 				if data.LastPosition == clients[0].Orders[0].Floor &&
 					data.Direction == -1 { // Elevator has reached its destination
 					clients[0].Orders = clients[0].Orders[1:]
-					lOrderSend_ch <- clients[0].Orders[0]
+					lOrderSend_ch <- comToElev(&clients[0].Orders[0])
 				}
 			} else {
 				message.RecvID = masterID
@@ -173,7 +174,7 @@ func transactionManager(message *com.Header) bool {
 					clients[i].Orders = data.Orders
 					clientExists = true
 					if i == 0 { // Order for this elevator
-						lOrderSend_ch <- clients[i].Orders[0] // Update elevator with order, even if no change
+						lOrderSend_ch <- comToElev(&clients[i].Orders[0]) // Update elevator with order, even if no change
 
 						send_ch <- com.Header{
 							message.MessageID, clients[0].ID, message.SendID, nil} // Ack to master
@@ -305,6 +306,14 @@ func clientStatusManager() {
 
 func newMessageID() int {
 	return 1
+}
+
+func elevToCom(order *elevator.Order) *com.Order {
+	return *com.Order{order.OriginID, order.Internal, order.Floor, order.Direction}
+}
+
+func comToElev(order *com.Order) *elevator.Order {
+	return *elevator.Order{order.OriginID, order.Internal, order.Floor, order.Direction}
 }
 
 func calc(newOrder *com.Order) Client {

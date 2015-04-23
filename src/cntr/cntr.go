@@ -4,7 +4,7 @@ import (
 	"com"
 	"com/tcp"
 	"elevator"
-	"math"
+	//"math"
 	"time"
 )
 
@@ -26,7 +26,7 @@ var (
 	message_ch       chan com.Header
 	ack_ch           chan com.Header
 	elevUpdate_ch    chan com.Header
-	reCalc_ch        chan com.Order
+	reCalc_ch        chan *com.Order
 	clients          []*Client
 	masterID         int
 )
@@ -53,7 +53,7 @@ func main() {
 	ack_ch = make(chan com.Header, 50)
 	message_ch = make(chan com.Header, 50)
 	elevUpdate_ch = make(chan com.Header, 100)
-	reCalc_ch = make(chan com.Order, 100)
+	reCalc_ch = make(chan *com.Order, 100)
 	localID, _ := com.Init(send_ch, receive_ch, clientStatus_ch, maxNumberOfClients)
 	println(localID)
 	clients = append(
@@ -208,7 +208,7 @@ func orderUpdater(order *com.Order, client *Client, isNewOrder bool) bool {
 	}
 	buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, com.ButtonLamp{
 		order.Direction, order.Floor, isNewOrder}}
-	for n, client_ := range clients { // Set button light for all clients
+	for _, client_ := range clients { // Set button light for all clients
 		if client_.ID != client.ID && order.Internal {
 			continue
 		}
@@ -275,8 +275,8 @@ func clientStatusManager() {
 			}
 		}
 		if !clientExists { // New client connected
-			clients = append(clients, Client{
-				status.ID, status.Active, status.IsMaster, 0, 0, make([]*Order, 0, maxOrderSize)})
+			clients = append(clients, &Client{
+				status.ID, status.Active, status.IsMaster, 0, 0, make([]*com.Order, 0, maxOrderSize)})
 
 			if clients[0].IsMaster {
 				message := com.Header{newMessageID(), clients[0].ID, status.ID, nil}
@@ -302,7 +302,7 @@ func newMessageID() int {
 }
 
 func elevToCom(order *elevator.Order) *com.Order {
-	return *com.Order{order.OriginID, order.Internal, order.Floor, order.Direction}
+	return &com.Order{order.OriginID, order.Internal, order.Floor, order.Direction}
 }
 
 func comToElev(order *com.Order) elevator.Order {
@@ -316,40 +316,41 @@ type Cost struct {
 }
 
 func calc(newOrder *com.Order) Client {
-	var cost Cost
+	return Client{clients[0].ID,clients[0].Active,clients[0].IsMaster,clients[0].LastPosition,clients[0].Direction,clients[0].Orders}
+	//var cost Cost
 
-	//var bestClient Client
-	var clientCost float32
-	bestCost := 1000.0
+	////var bestClient Client
+	//var clientCost float32
+	//bestCost := 1000.0
 
-	for _, client := range clients {
-		if ((client.LastPosition < 0) && (client.Direction < 0)) || !client.Active {
-			continue
-		} else if len(client.Orders) > 0 {
-			for n, order := range client.Orders {
+	//for _, client := range clients {
+	//	if ((client.LastPosition < 0) && (client.Direction < 0)) || !client.Active {
+	//		continue
+	//	} else if len(client.Orders) > 0 {
+	//		for n, order := range client.Orders {
 
-				if newOrder.Direction == order.Direction {
-					if client.LastPosition < newOrder.Floor < order.Floor {
-						clientCost = math.Abs(newOrder.Floor - client.LastPosition)
+	//			if newOrder.Direction == order.Direction {
+	//				if client.LastPosition < newOrder.Floor < order.Floor {
+	//					clientCost = math.Abs(newOrder.Floor - client.LastPosition)
 
-					} else if newOrder.Floor <= client.LastPosition {
-						clientCost = order.Floor - client.LastPosition + (nFloors-order.Floor)*elevEstimate
-					} else {
-						clientCost = newOrder.Floor - client.LastPosition
-					}
-				} else if n < len(client.Orders)-1 {
-					continue
-				} else {
+	//				} else if newOrder.Floor <= client.LastPosition {
+	//					clientCost = order.Floor - client.LastPosition + (nFloors-order.Floor)*elevEstimate
+	//				} else {
+	//					clientCost = newOrder.Floor - client.LastPosition
+	//				}
+	//			} else if n < len(client.Orders)-1 {
+	//				continue
+	//			} else {
 
-				}
+	//			}
 
-			}
-		} else {
-			clientCost = math.Abs(newOrder.Floor - client.LastPosition)
-			if clientCost < bestCost {
-				bestCost = clientCost
-				cost = Cost{&client, clientCost, 0}
-			}
-		}
-	}
+	//		}
+	//	} else {
+	//		clientCost = math.Abs(newOrder.Floor - client.LastPosition)
+	//		if clientCost < bestCost {
+	//			bestCost = clientCost
+	//			cost = Cost{client, clientCost, 0}
+	//		}
+	//	}
+	//}
 }

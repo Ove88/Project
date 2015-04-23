@@ -4,7 +4,7 @@ import (
 	"com"
 	"com/tcp"
 	"elevator"
-	//"math"
+	"math"
 	"time"
 )
 
@@ -12,8 +12,6 @@ const (
 	maxOrderSize       int = 50
 	maxNumberOfClients int = 10
 	nFloors            int = 4
-	//elevConst          float32 = nFloors * 0.25
-	//elevEstimate       float32 = 1 / 2
 )
 
 var (
@@ -316,13 +314,157 @@ type Cost struct {
 }
 
 func calc(newOrder *com.Order) Client {
-	return Client{clients[0].ID,clients[0].Active,clients[0].IsMaster,clients[0].LastPosition,clients[0].Direction,clients[0].Orders}
-	//var cost Cost
+	//return Client{clients[0].ID,clients[0].Active,clients[0].IsMaster,clients[0].LastPosition,clients[0].Direction,clients[0].Orders}
+	const stopCost int = 1
+	var cost Cost
+	var bestCost int
+	var clientCost int
+	bestCost = 1000
 
-	////var bestClient Client
-	//var clientCost float32
-	//bestCost := 1000.0
+	for _, client := range clients {
+		if (client.LastPosition < 0) && (client.Direction < 0) || !client.Active {
+			continue
+		} else if len(client.Orders) > 0 {
+			for n, order := range client.Orders {
+				if newOrder.Direction == order.Direction{
+						if newOrder.Floor > order.Floor && newOrder.Floor > client.LastPosition && client.LastPosition > order.Floor {			// case 12,15
+							if order.Direction == 0 {
+								clientCost = client.LastPosition - 2*order.Floor + newOrder.Floor + stopCost
+							} else {
+								clientCost = client.LastPosition + newOrder.Floor + stopCost
+							}												
+						}else if newOrder.Floor <= order.Floor && newOrder.Floor < client.LastPosition && client.LastPosition < order.Floor {			// case 9,14
+							if order.Direction == 0 {
+								clientCost = - client.LastPosition + 2*nFloors - newOrder.Floor + 2*stopCost
+							} else {
+								clientCost = 2*order.Floor - client.LastPosition - newOrder.Floor + stopCost
+							}
+						}else if newOrder.Floor <= order.Floor && newOrder.Floor > client.LastPosition {			// case 1,7
+							if order.Direction == 0 {
+								clientCost = newOrder.Floor - client.LastPosition + stopCost
+							} else {
+								clientCost = 2* order.Floor - client.LastPosition - newOrder.Floor
+							}
+						}else if newOrder.Floor <= order.Floor && newOrder.Floor < client.LastPosition {	// case 3,5
+							if order.Direction == 0 {
+								clientCost = client.LastPosition - newOrder.Floor
+							} else {
+								clientCost = client.LastPosition - newOrder.Floor + stopCost
+							}						
+						}else if newOrder.Floor > client.LastPosition{									// case 2,8
+							if order.Direction == 0 {
+								clientCost = newOrder.Floor - client.LastPosition + stopCost
+							} else {
+								clientCost = newOrder.Floor - client.LastPosition
+							}		
+						}else if newOrder.Floor < client.LastPosition{									// case 4,6
+							if order.Direction == 0 {
+								clientCost = client.LastPosition - 2*order.Floor + newOrder.Floor + stopCost 
+							} else {
+								clientCost = client.LastPosition - newOrder.Floor
+							}		
+						} else { 
+							
+						}
+				} else if n < len(client.Orders)-1 {
+					continue
+				} else {
+					clientCost = int(math.Abs(float64(newOrder.Floor - client.LastPosition)))
+				}
+				clientCost += n
+				if clientCost < bestCost{
+					bestCost = clientCost
+					cost = Cost{client,clientCost,n}
+				}
+			}
+		} else {
+			clientCost = int(math.Abs(float64(newOrder.Floor - client.LastPosition)))
+				if clientCost < bestCost{
+					bestCost = clientCost
+					cost = Cost{client, clientCost, 0}
+				}
+			}
+		}
+	
+	newOrders := make([]*com.Order,0,maxOrderSize)
+	if cost.OrderPos > 0{
+		newOrders = append(newOrders,cost.Client.Orders[0:cost.OrderPos-1]...)
+		newOrders = append(newOrders,newOrder)
+		newOrders = append(newOrders,cost.Client.Orders[cost.OrderPos:]...)
+	}else{
+		newOrders = append(newOrders,newOrder)
+		newOrders = append(newOrders,cost.Client.Orders...)
+	}
+	bestClient := Client{cost.Client.ID,cost.Client.Active,cost.Client.IsMaster,cost.Client.LastPosition,cost.Client.Direction,nil}
+	bestClient.Orders = newOrders
+	return bestClient
+}
 
+//func calc(newOrder *com.Order) Client {
+//	return Client{clients[0].ID,clients[0].Active,clients[0].IsMaster,clients[0].LastPosition,clients[0].Direction,clients[0].Orders}
+//	const stopCost int = 1
+//	var bestClient Client
+//	var bestCost int
+//	bestCost = 1000
+//	var clientCost int
+
+//	for _, client := range clients {
+//		if (client.LastPosition < 0) && (client.Direction < 0) || !client.Active {
+//			continue
+//		} else if len(client.Orders) > 0 {
+//			for n, order := range client.Orders {
+//				if newOrder.Direction == order.Direction{
+//					//if newOrder.Floor <= order.Floor {
+//						if newOrder.Floor <= order.Floor && newOrder.Floor > client.LastPosition {			// case 1,7
+//							if order.Direction == 0 {
+//								clientCost = newOrder.Floor - client.LastPosition + stopCost
+//							} else {
+//								clientCost = 2* order.Floor - client.LastPosition - newOrder.Floor
+//							}							
+//						} else if newOrder.Floor <= order.Floor && newOrder.Floor < client.LastPosition {	// case 3,5
+//							if order.Direction == 0 {
+//								clientCost = client.LastPosition - newOrder.Floor
+//							} else {
+//								clientCost = client.LastPosition - newOrder.Floor + stopCost
+//							}						
+//						}else if newOrder.Floor > client.LastPosition{									// case 2,8
+//							if order.Direction == 0 {
+//								clientCost = newOrder.Floor - client.LastPosition + stopCost
+//							} else {
+//								clientCost = newOrder.Floor - client.LastPosition
+//							}		
+//						}else if newOrder.Floor < client.LastPosition{									// case 4,6
+//							if order.Direction == 0 {
+//								clientCost = client.LastPosition - 2*order.Floor + newOrder.Floor + stopCost 
+//							} else {
+//								clientCost = client.LastPosition - newOrder.Floor
+//							}		
+//						} else { 
+							
+//						}
+//					} else if newOrder.Floor > order.Floor {
+//							clientCost = newOrder.Floor - client.LastPosition
+//						}
+//				} else if n < len(client.Orders)-1 {
+//					continue
+//				} else {
+//					clientCost = math.Abs(newOrder.Floor - client.LastPosition)
+//				}
+//				clientCost += n
+//			}
+//		} else {
+//			clientCost = math.Abs(newOrder.Floor - client.LastPosition)
+//			if clientCost < bestCost {
+//				bestCost = clientCost
+//				cost = Cost{client, clientCost, 0}
+//			}
+//		}
+//		if clientCost < bestCost {
+//			bestClient = client
+//		}
+//	}
+//	return bestClient
+//}
 	//for _, client := range clients {
 	//	if ((client.LastPosition < 0) && (client.Direction < 0)) || !client.Active {
 	//		continue
@@ -353,4 +495,4 @@ func calc(newOrder *com.Order) Client {
 	//		}
 	//	}
 	//}
-}
+

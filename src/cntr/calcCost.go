@@ -31,28 +31,29 @@ func calculateCost(order Order, client Client) Client {
 	var clientCost int
 
 	for _, client := range clients {
-		if (client.LastPosition < 0) && (client.Direction < 0) {
+		if (client.LastPosition < 0) && (client.Direction < 0) || !client.Active {
 			continue
-		} else {
+		} else if len(client.
+			for n, order := range client.Orders {
 			if order.Direction == client.Direction {
 				if order.Floor <= client.activeOrder.Floor {
 					if order.Floor > client.LastPosition {
-						clientCost = clientCost + 0
+						clientCost = 0
 					} else if order.Floor < client.LastPosition {
 						if client.activeOrder.Direction == 0 {
-							clientCost = clientCost + (client.activeOrder.Floor - order.Floor) + (nFloors - client.activeOrder.Floor) + (nFloors - order.Floor)
+							clientCost =   2*nFloors - 2*order.Floor
 						} else if client.activeOrder.Direction == 1 {
-							clientCost = clientCost + (order.activeOrder.Floor - order.Floor) + order.activeOrder.Floor + order.Floor
+							clientCost = 2* order.activeOrder.Floor
 						}
 					}
 				} else if order.Floor > client.activeOrder.Floor {
-					clientCost = clientcost + (client.activeOrder.Floor - client.LastPosition) + (order.Floor - client.activeOrder.Floor)
+					clientCost = order.Floor - client.LastPosition
 				}
 			} else { // order.Direction != client.Direction
 				if client.activeOrder.Direction == 0 {
-					clientCost = clientCost + (client.activeOrder.Floor - client.LastPosition) + client.activeOrder.Floor + order.Floor
+					clientCost = 2*client.activeOrder.Floor + order.Floor - client.LastPosition  
 				} else {
-					clientCost = clientCost + (client.LastPosition) + order.Floor
+					clientCost = client.LastPosition + order.Floor
 				}
 			}
 		}

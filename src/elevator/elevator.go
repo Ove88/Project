@@ -41,6 +41,7 @@ type Position struct {
 }
 
 func Init(sOrder_ch <-chan Order, rOrder_ch chan<- Order, pos_ch chan Position) {
+	driver.Init()
 	stopped = false
 	driver.Set_direction(driver.DIRECTION_STOP)
 	button_ch = make(chan ButtonPush)
@@ -70,7 +71,7 @@ func orderHandler(sOrder_ch <-chan Order) {
 	for {
 		order := <-sOrder_ch
 		for doorOpen {
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 		}
 		if !stopped {
 			if (order.Floor == currentPosition) && currentDirection != -1 {
@@ -109,7 +110,7 @@ func orderGenerator(rOrder_ch chan<- Order) {
 		} else {
 			rOrder_ch <- Order{0, false, buttonPush.Floor, buttonPush.Button}
 		}
-		//println("Floor: "+ strconv.Itoa(buttonPush.Floor) + ", Button: "+strconv.Itoa(buttonPush.Button))
+		//println("Floor: "+strconv.Itoa(buttonPush.Floor)+", Button:"+strconv.Itoa(buttonPush.Button))
 	}
 }
 
@@ -117,7 +118,20 @@ func elevatorPositionHandler(pos_ch chan Position) {
 	var pos, lastPos int
 	var arrived bool
 	var order Order
+	var initialization bool
+	initialization = false
 	arrived = false
+	for {
+		if initialization {
+			if driver.Get_floor_sensor_signal() != -1 {
+				driver.Set_direction(driver.DIRECTION_STOP)
+				break
+			}
+		} else {
+			initialization = true
+			driver.Set_direction(driver.DIRECTION_UP)
+		}
+	}
 	for {
 		select {
 		case order = <-elevPos_ch:
@@ -130,10 +144,14 @@ func elevatorPositionHandler(pos_ch chan Position) {
 				currentPosition = pos
 				//println("currentPos:"+strconv.Itoa(currentPosition))
 				pos_ch <- Position{pos, currentDirection}
+				println("er overst")
 			}
 			if pos == order.Floor && !arrived {
 				arrived = true
+
+				time.Sleep(200 * time.Millisecond)
 				driver.Set_direction(driver.DIRECTION_STOP)
+
 				if order.Internal {
 					driver.Set_button_indicator(2, pos, false)
 				} else {
@@ -142,6 +160,7 @@ func elevatorPositionHandler(pos_ch chan Position) {
 				currentDirection = -1
 				doorOpen_ch <- true
 				pos_ch <- Position{pos, currentDirection}
+				println("er nederst")
 			}
 			//time.Sleep(1 * time.Millisecond)
 			lastPos = pos

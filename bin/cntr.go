@@ -124,7 +124,6 @@ func transactionManager(message *com.Header) bool {
 						}
 					}
 				}
-
 			} else {
 				message.RecvID = masterID
 				send_ch <- message
@@ -134,13 +133,14 @@ func transactionManager(message *com.Header) bool {
 		clients[0].LastPosition = data.LastPosition
 		clients[0].Direction = data.Direction
 		if clients[0].Active {
-			if clients[0].IsMaster && len(clients[0].Orders) > 0 {
-
-				if data.LastPosition == clients[0].Orders[0].Floor &&
-					data.Direction == -1 { // Elevator has reached its destination
-					clients[0].Orders = clients[0].Orders[1:]
-					if len(clients[0].Orders) > 0 {
-						lOrderSend_ch <- comToElev(clients[0].Orders[0])
+			if clients[0].IsMaster {
+				if len(clients[0].Orders) > 0 {
+					if data.LastPosition == clients[0].Orders[0].Floor &&
+						data.Direction == -1 { // Elevator has reached its destination
+						clients[0].Orders = clients[0].Orders[1:]
+						if len(clients[0].Orders) > 0 {
+							lOrderSend_ch <- comToElev(clients[0].Orders[0])
+						}
 					}
 				}
 			} else {
@@ -224,8 +224,8 @@ func orderUpdater(order *com.Order, client *Client, isNewOrder bool) bool {
 		send_ch <- buttonLightUpdate
 	}
 	elevator.SetButtonLamp(order.Direction, order.Floor, true)
-	if client.ID == clients[0].ID {
-		lOrderSend_ch <- comToElev(client.Orders[0])
+	if (client.ID == clients[0].ID) && len(client.Orders) == 0 {
+		lOrderSend_ch <- comToElev(order)
 	}
 	return true
 }
@@ -408,8 +408,10 @@ func calc(newOrder *com.Order) Client {
 	}
 
 	newOrders := make([]*com.Order, 0, maxOrderSize)
+	println("Plassering i ordrekø: " + strconv.Itoa(cost.OrderPos))
+	println("Størrlse på ordrekø: " + strconv.Itoa(len(cost.Client.Orders)))
 	if cost.OrderPos > 0 {
-		newOrders = append(newOrders, cost.Client.Orders[0:cost.OrderPos-1]...)
+		newOrders = append(newOrders, cost.Client.Orders[0:cost.OrderPos]...)
 		newOrders = append(newOrders, newOrder)
 		newOrders = append(newOrders, cost.Client.Orders[cost.OrderPos:]...)
 	} else {
@@ -418,6 +420,7 @@ func calc(newOrder *com.Order) Client {
 	}
 	bestClient := Client{cost.Client.ID, cost.Client.Active, cost.Client.IsMaster, cost.Client.LastPosition, cost.Client.Direction, nil}
 	bestClient.Orders = newOrders
+	println("Størrlse på ordrekø: " + strconv.Itoa(len(bestClient.Orders)))
 	return bestClient
 }
 

@@ -6,7 +6,7 @@ import (
 	"time"
 	//"strconv"
 )
-
+	
 const (
 	numberOfFloors  int = 4
 	numberOfButtons int = 3
@@ -95,7 +95,7 @@ func orderHandler(sOrder_ch <-chan Order) {
 func orderGenerator(rOrder_ch chan<- Order) {
 	for {
 		buttonPush := <-button_ch
-		if buttonPush.Button == 2 {
+		if buttonPush.Button == 2 { // Internal order
 			//println("ButtonPush.Floor: "+ strconv.Itoa(buttonPush.Floor) + ", CurrentPosition: "+strconv.Itoa(currentPosition))
 			if buttonPush.Floor > currentPosition {
 				rOrder_ch <- Order{0, true, buttonPush.Floor, 0}
@@ -144,7 +144,6 @@ func elevatorPositionHandler(pos_ch chan Position) {
 				currentPosition = pos
 				//println("currentPos:"+strconv.Itoa(currentPosition))
 				pos_ch <- Position{pos, currentDirection}
-				println("er overst")
 			}
 			if pos == order.Floor && !arrived {
 				arrived = true
@@ -160,7 +159,6 @@ func elevatorPositionHandler(pos_ch chan Position) {
 				currentDirection = -1
 				doorOpen_ch <- true
 				pos_ch <- Position{pos, currentDirection}
-				println("er nederst")
 			}
 			//time.Sleep(1 * time.Millisecond)
 			lastPos = pos

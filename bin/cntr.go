@@ -5,7 +5,7 @@ import (
 	"com/tcp"
 	"elevator"
 	"math"
-	//"time"
+	"time"
 	"strconv"
 )
 
@@ -94,7 +94,7 @@ func channelSelector() {
 			transactionManager(&message)
 
 		case order := <-lOrderReceive_ch: // Local orders from elevator
-			println("lOrder")
+			//println("lOrder")
 			order.OriginID = clients[0].ID
 			transactionManager(&com.Header{
 				newMessageID(), clients[0].ID, 0, order})
@@ -103,7 +103,7 @@ func channelSelector() {
 			transactionManager(&com.Header{
 				newMessageID(), clients[0].ID, 0, order})
 		case pos := <-elevPos_ch: // Elevator position has changed
-			println("elevPos")
+			//println("elevPos")
 			transactionManager(&com.Header{
 				newMessageID(), clients[0].ID, 0, pos})
 		}
@@ -139,7 +139,7 @@ func transactionManager(message *com.Header) bool {
 				if len(clients[0].Orders) > 0 {
 					if data.LastPosition == clients[0].Orders[0].Floor &&
 						data.Direction == -1 { // Elevator has reached its destination
-
+						println("ankommet etasje")
 						clients[0].Orders = clients[0].Orders[1:]
 						if len(clients[0].Orders) > 0 {
 							lOrderSend_ch <- comToElev(clients[0].Orders[0])
@@ -230,9 +230,9 @@ func orderUpdater(order *com.Order, client *Client, isNewOrder bool) bool {
 		buttonLightUpdate.RecvID = client.ID
 		send_ch <- buttonLightUpdate
 	}
-	elevator.SetButtonLamp(order.Direction, order.Floor, isNewOrder)           // Set button light for this elevator
-	if (client.ID == clients[0].ID) && len(client.Orders) == 0 && isNewOrder { // Start this elevator if it's the first order
-		lOrderSend_ch <- comToElev(order)
+	elevator.SetButtonLamp(order.Direction, order.Floor, isNewOrder)   // Set button light for this elevator
+	if (client.ID == clients[0].ID){								    //  Update master elevator
+		lOrderSend_ch <- comToElev(client.Orders[0])							
 	}
 	return true
 }
@@ -341,68 +341,68 @@ func calc(newOrder *com.Order) Client {
 	var cost Cost
 	var bestCost int
 	var clientCost int
+	var pos int
 	bestCost = 1000
 
 	for _, client := range clients {
-		if (client.LastPosition < 0) && (client.Direction < 0) || !client.Active {
+		if ((client.LastPosition < 0) && (client.Direction < 0)) || !client.Active || (client.ID != newOrder.OriginID && newOrder.Internal){
 			continue
 		} else if len(client.Orders) > 0 {
 
-			println("er i kostfunksjon")
 			for n, order := range client.Orders {
 				if newOrder.Direction == order.Direction {
-					if newOrder.Floor > order.Floor && newOrder.Floor > client.LastPosition && client.LastPosition > order.Floor { // case 12,15
+					if newOrder.Floor <= order.Floor && newOrder.Floor > client.LastPosition { // case 1,7
 						if order.Direction == 0 {
-							clientCost = client.LastPosition - 2*order.Floor + newOrder.Floor + stopCost
+							pos = n
+							clientCost = newOrder.Floor - client.LastPosition + (n+1)*stopCost
 						} else {
-							clientCost = client.LastPosition + newOrder.Floor + stopCost
-						}
-					} else if newOrder.Floor <= order.Floor && newOrder.Floor < client.LastPosition && client.LastPosition < order.Floor { // case 9,14
-						if order.Direction == 0 {
-							clientCost = -client.LastPosition + 2*nFloors - newOrder.Floor + 2*stopCost
-						} else {
-							clientCost = 2*order.Floor - client.LastPosition - newOrder.Floor + stopCost
-						}
-					} else if newOrder.Floor <= order.Floor && newOrder.Floor > client.LastPosition { // case 1,7
-						if order.Direction == 0 {
-							clientCost = newOrder.Floor - client.LastPosition + stopCost
-						} else {
-							clientCost = 2*order.Floor - client.LastPosition - newOrder.Floor
+							pos = n+1
+							clientCost = 2*order.Floor - client.LastPosition - newOrder.Floor + (n+1)*stopCost // case 7
 						}
 					} else if newOrder.Floor <= order.Floor && newOrder.Floor < client.LastPosition { // case 3,5
 						if order.Direction == 0 {
+							pos = n
 							clientCost = client.LastPosition - newOrder.Floor
 						} else {
-							clientCost = client.LastPosition - newOrder.Floor + stopCost
+							pos = n+1
+							clientCost = client.LastPosition - newOrder.Floor + (n+1)*stopCost
 						}
 					} else if newOrder.Floor > client.LastPosition { // case 2,8
 						if order.Direction == 0 {
-							clientCost = newOrder.Floor - client.LastPosition + stopCost
+							pos = n+1
+							clientCost = newOrder.Floor - client.LastPosition + (n+1)*stopCost
 						} else {
+							pos = n
 							clientCost = newOrder.Floor - client.LastPosition
 						}
 					} else if newOrder.Floor < client.LastPosition { // case 4,6
 						if order.Direction == 0 {
-							clientCost = client.LastPosition - 2*order.Floor + newOrder.Floor + stopCost
+							pos = n+1
+							clientCost = client.LastPosition - 2*order.Floor + newOrder.Floor + (n+1)*stopCost
 						} else {
+							pos = n
 							clientCost = client.LastPosition - newOrder.Floor
 						}
 					} else {
 
 					}
-				} else if n < len(client.Orders)-1 {
+				}else if newOrder.Internal{
+					pos = n
+				}else if n < len(client.Orders)-1 {
 					continue
 				} else {
 					clientCost = int(math.Abs(float64(newOrder.Floor - client.LastPosition)))
+					pos = n+1
 				}
 				clientCost += n
 
 				if clientCost < bestCost {
 					bestCost = clientCost
-					cost = Cost{client, clientCost, n}
+					cost = Cost{client, clientCost, pos}
 					println("current clientCost: " + strconv.Itoa(clientCost))
 					println("bestCost: " + strconv.Itoa(bestCost))
 				}
+				break
 			}
 		} else {
 			clientCost = int(math.Abs(float64(newOrder.Floor - client.LastPosition)))
@@ -417,7 +417,6 @@ func calc(newOrder *com.Order) Client {
 
 	newOrders := make([]*com.Order, 0, maxOrderSize)
 	println("Plassering i ordrekø: " + strconv.Itoa(cost.OrderPos))
-	println("Størrlse på ordrekø: " + strconv.Itoa(len(cost.Client.Orders)))
 	if cost.OrderPos > 0 {
 		newOrders = append(newOrders, cost.Client.Orders[0:cost.OrderPos]...)
 		newOrders = append(newOrders, newOrder)
@@ -428,102 +427,103 @@ func calc(newOrder *com.Order) Client {
 	}
 	bestClient := Client{cost.Client.ID, cost.Client.Active, cost.Client.IsMaster, cost.Client.LastPosition, cost.Client.Direction, nil}
 	bestClient.Orders = newOrders
-	println("Størrlse på ordrekø: " + strconv.Itoa(len(bestClient.Orders)))
+	println("Størrelse på ordrekø: " + strconv.Itoa(len(bestClient.Orders)))
 	return bestClient
 }
 
 //func calc(newOrder *com.Order) Client {
-//	return Client{clients[0].ID,clients[0].Active,clients[0].IsMaster,clients[0].LastPosition,clients[0].Direction,clients[0].Orders}
+//	//return Client{clients[0].ID,clients[0].Active,clients[0].IsMaster,clients[0].LastPosition,clients[0].Direction,clients[0].Orders}
 //	const stopCost int = 1
-//	var bestClient Client
+//	var cost Cost
 //	var bestCost int
-//	bestCost = 1000
 //	var clientCost int
+//	bestCost = 1000
 
 //	for _, client := range clients {
 //		if (client.LastPosition < 0) && (client.Direction < 0) || !client.Active {
 //			continue
 //		} else if len(client.Orders) > 0 {
-//			for n, order := range client.Orders {
-//				if newOrder.Direction == order.Direction{
-//					//if newOrder.Floor <= order.Floor {
-//						if newOrder.Floor <= order.Floor && newOrder.Floor > client.LastPosition {			// case 1,7
-//							if order.Direction == 0 {
-//								clientCost = newOrder.Floor - client.LastPosition + stopCost
-//							} else {
-//								clientCost = 2* order.Floor - client.LastPosition - newOrder.Floor
-//							}
-//						} else if newOrder.Floor <= order.Floor && newOrder.Floor < client.LastPosition {	// case 3,5
-//							if order.Direction == 0 {
-//								clientCost = client.LastPosition - newOrder.Floor
-//							} else {
-//								clientCost = client.LastPosition - newOrder.Floor + stopCost
-//							}
-//						}else if newOrder.Floor > client.LastPosition{									// case 2,8
-//							if order.Direction == 0 {
-//								clientCost = newOrder.Floor - client.LastPosition + stopCost
-//							} else {
-//								clientCost = newOrder.Floor - client.LastPosition
-//							}
-//						}else if newOrder.Floor < client.LastPosition{									// case 4,6
-//							if order.Direction == 0 {
-//								clientCost = client.LastPosition - 2*order.Floor + newOrder.Floor + stopCost
-//							} else {
-//								clientCost = client.LastPosition - newOrder.Floor
-//							}
-//						} else {
 
+//			println("er i kostfunksjon")
+//			for n, order := range client.Orders {
+//				if newOrder.Direction == order.Direction {
+//					if newOrder.Floor > order.Floor && newOrder.Floor > client.LastPosition && client.LastPosition > order.Floor { // case 12,15
+//						if order.Direction == 0 {
+//							clientCost = client.LastPosition - 2*order.Floor + newOrder.Floor + stopCost
+//						} else {
+//							clientCost = client.LastPosition + newOrder.Floor + stopCost
 //						}
-//					} else if newOrder.Floor > order.Floor {
+//					} else if newOrder.Floor <= order.Floor && newOrder.Floor < client.LastPosition && client.LastPosition < order.Floor { // case 9,14
+//						if order.Direction == 0 {
+//							clientCost = -client.LastPosition + 2*nFloors - newOrder.Floor + 2*stopCost
+//						} else {
+//							clientCost = 2*order.Floor - client.LastPosition - newOrder.Floor + stopCost
+//						}
+//					} else if newOrder.Floor <= order.Floor && newOrder.Floor > client.LastPosition { // case 1,7
+//						if order.Direction == 0 {
+//							clientCost = newOrder.Floor - client.LastPosition + stopCost
+//						} else {
+//							clientCost = 2*order.Floor - client.LastPosition - newOrder.Floor
+//						}
+//					} else if newOrder.Floor <= order.Floor && newOrder.Floor < client.LastPosition { // case 3,5
+//						if order.Direction == 0 {
+//							clientCost = client.LastPosition - newOrder.Floor
+//						} else {
+//							clientCost = client.LastPosition - newOrder.Floor + stopCost
+//						}
+//					} else if newOrder.Floor > client.LastPosition { // case 2,8
+//						if order.Direction == 0 {
+//							clientCost = newOrder.Floor - client.LastPosition + stopCost
+//						} else {
 //							clientCost = newOrder.Floor - client.LastPosition
 //						}
+//					} else if newOrder.Floor < client.LastPosition { // case 4,6
+//						if order.Direction == 0 {
+//							clientCost = client.LastPosition - 2*order.Floor + newOrder.Floor + stopCost
+//						} else {
+//							clientCost = client.LastPosition - newOrder.Floor
+//						}
+//					} else {
+
+//					}
 //				} else if n < len(client.Orders)-1 {
 //					continue
 //				} else {
-//					clientCost = math.Abs(newOrder.Floor - client.LastPosition)
+//					clientCost = int(math.Abs(float64(newOrder.Floor - client.LastPosition)))
 //				}
 //				clientCost += n
+
+//				if clientCost < bestCost {
+//					bestCost = clientCost
+//					cost = Cost{client, clientCost, n}
+//					println("current clientCost: " + strconv.Itoa(clientCost))
+//					println("bestCost: " + strconv.Itoa(bestCost))
+//				}
 //			}
 //		} else {
-//			clientCost = math.Abs(newOrder.Floor - client.LastPosition)
+//			clientCost = int(math.Abs(float64(newOrder.Floor - client.LastPosition)))
 //			if clientCost < bestCost {
 //				bestCost = clientCost
 //				cost = Cost{client, clientCost, 0}
+//				println("current clientCost: " + strconv.Itoa(clientCost))
+//				println("bestCost: " + strconv.Itoa(bestCost))
 //			}
-//		}
-//		if clientCost < bestCost {
-//			bestClient = client
 //		}
 //	}
-//	return bestClient
-//}
-//for _, client := range clients {
-//	if ((client.LastPosition < 0) && (client.Direction < 0)) || !client.Active {
-//		continue
-//	} else if len(client.Orders) > 0 {
-//		for n, order := range client.Orders {
 
-//			if newOrder.Direction == order.Direction {
-//				if client.LastPosition < newOrder.Floor < order.Floor {
-//					clientCost = math.Abs(newOrder.Floor - client.LastPosition)
-
-//				} else if newOrder.Floor <= client.LastPosition {
-//					clientCost = order.Floor - client.LastPosition + (nFloors-order.Floor)*elevEstimate
-//				} else {
-//					clientCost = newOrder.Floor - client.LastPosition
-//				}
-//			} else if n < len(client.Orders)-1 {
-//				continue
-//			} else {
-
-//			}
-
-//		}
+//	newOrders := make([]*com.Order, 0, maxOrderSize)
+//	println("Plassering i ordrekø: " + strconv.Itoa(cost.OrderPos))
+//	println("Størrlse på ordrekø: " + strconv.Itoa(len(cost.Client.Orders)))
+//	if cost.OrderPos > 0 {
+//		newOrders = append(newOrders, cost.Client.Orders[0:cost.OrderPos]...)
+//		newOrders = append(newOrders, newOrder)
+//		newOrders = append(newOrders, cost.Client.Orders[cost.OrderPos:]...)
 //	} else {
-//		clientCost = math.Abs(newOrder.Floor - client.LastPosition)
-//		if clientCost < bestCost {
-//			bestCost = clientCost
-//			cost = Cost{client, clientCost, 0}
-//		}
+//		newOrders = append(newOrders, newOrder)
+//		newOrders = append(newOrders, cost.Client.Orders...)
 //	}
+//	bestClient := Client{cost.Client.ID, cost.Client.Active, cost.Client.IsMaster, cost.Client.LastPosition, cost.Client.Direction, nil}
+//	bestClient.Orders = newOrders
+//	println("Størrlse på ordrekø: " + strconv.Itoa(len(bestClient.Orders)))
+//	return bestClient
 //}

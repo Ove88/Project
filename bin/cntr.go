@@ -28,6 +28,7 @@ var (
 	reCalc_ch        chan *com.Order
 	clients          []*Client
 	masterID         int
+	isAlone          bool
 )
 
 type Client struct {
@@ -42,6 +43,7 @@ type Client struct {
 func main() {
 
 	masterID = -1
+	isAlone = true
 	clients = make([]*Client, 0, maxNumberOfClients)
 	send_ch = make(chan tcp.IDable, 1)
 	receive_ch = make(chan interface{}, 10)
@@ -53,13 +55,13 @@ func main() {
 	message_ch = make(chan com.Header, 50)
 	elevUpdate_ch = make(chan com.Header, 100)
 	reCalc_ch = make(chan *com.Order, 100)
+
 	localID, _ := com.Init(send_ch, receive_ch, clientStatus_ch, maxNumberOfClients)
-	println(localID)
 	clients = append(
-		clients, &Client{localID, false, false, 0, 0, make([]*com.Order, 0, maxOrderSize)})
+		clients, &Client{localID, true, true, 0, 0, make([]*com.Order, 0, maxOrderSize)})
 	elevator.Init(lOrderSend_ch, lOrderReceive_ch, elevPos_ch)
-	clients[0].Active = true
-	clients[0].IsMaster = true
+	println(localID)
+
 	go netwMessageHandler()
 	go channelSelector()
 	clientStatusManager()
@@ -71,14 +73,14 @@ func netwMessageHandler() {
 		message := message_.(com.Header)
 
 		switch data := message.Data.(type) {
-		case com.ButtonLamp:
+		case com.ButtonLamp: // Button light update from master
 			println("buttonLamp")
 			elevator.SetButtonLamp(
 				data.Button, data.Floor, data.State)
-		case nil:
+		case nil: // Ack message from client
 			println("Ack")
 			ack_ch <- message
-		default:
+		default: // All other messages
 			println("Default")
 			message_ch <- message
 		}
@@ -87,16 +89,16 @@ func netwMessageHandler() {
 func channelSelector() {
 	for {
 		select {
-		case message := <-message_ch:
+		case message := <-message_ch: // Messages from the network
 			println("netwMess")
 			transactionManager(&message)
 
-		case order := <-lOrderReceive_ch:
+		case order := <-lOrderReceive_ch: // Local orders from elevator
 			println("lOrder")
 			order.OriginID = clients[0].ID
 			transactionManager(&com.Header{
 				newMessageID(), clients[0].ID, 0, order})
-		case order := <-reCalc_ch:
+		case order := <-reCalc_ch: // Recalculate orders from inactive client
 			println("recalc")
 			transactionManager(&com.Header{
 				newMessageID(), clients[0].ID, 0, order})
@@ -115,12 +117,12 @@ func transactionManager(message *com.Header) bool {
 	case elevator.Order: // Local order
 		if clients[0].Active {
 			if clients[0].IsMaster {
-				client := calc(elevToCom(&data))
-				println(strconv.Itoa(client.ID))
-				if orderUpdater(elevToCom(&data), &client, true) {
+				chosenClient := calc(elevToCom(&data))
+				println(strconv.Itoa(chosenClient.ID))
+				if orderUpdater(elevToCom(&data), &chosenClient, true) {
 					for n, client_ := range clients {
-						if client_.ID == client.ID {
-							clients[n].Orders = client.Orders
+						if client_.ID == chosenClient.ID {
+							clients[n].Orders = chosenClient.Orders
 						}
 					}
 				}
@@ -137,6 +139,7 @@ func transactionManager(message *com.Header) bool {
 				if len(clients[0].Orders) > 0 {
 					if data.LastPosition == clients[0].Orders[0].Floor &&
 						data.Direction == -1 { // Elevator has reached its destination
+
 						clients[0].Orders = clients[0].Orders[1:]
 						if len(clients[0].Orders) > 0 {
 							lOrderSend_ch <- comToElev(clients[0].Orders[0])
@@ -152,8 +155,8 @@ func transactionManager(message *com.Header) bool {
 			//	// Betjene interne ordrer?
 		}
 	case com.Order: // Remote order from client
-		client := calc(&data)
-		return orderUpdater(&data, &client, true)
+		chosenClient := calc(&data)
+		return orderUpdater(&data, &chosenClient, true)
 
 	case com.ElevUpdate: // Status update from client
 		for i, client := range clients {
@@ -161,11 +164,14 @@ func transactionManager(message *com.Header) bool {
 			if message.SendID == client.ID {
 				clients[i].LastPosition = data.LastPosition
 				clients[i].Direction = data.Direction
+				if len(clients[0].Orders) > 0 {
+					if data.LastPosition == clients[i].Orders[0].Floor &&
+						data.Direction == -1 { // Elevator has reached its destination
+						lastOrder := clients[i].Orders[0]
+						clients[i].Orders = clients[i].Orders[1:]
+						orderUpdater(lastOrder, clients[i], false) //bug
 
-				if data.LastPosition == clients[i].Orders[0].Floor &&
-					data.Direction == -1 { // Elevator has reached its destination
-					clients[i].Orders = clients[i].Orders[1:]
-					return orderUpdater(clients[i].Orders[0], clients[i], false)
+					}
 				}
 				break
 			}
@@ -204,27 +210,28 @@ func orderUpdater(order *com.Order, client *Client, isNewOrder bool) bool {
 		}
 		orderUpdate.RecvID = client_.ID
 		send_ch <- orderUpdate
-
-		//select {
-		//case ack := <-ack_ch:
-		//	if ack.MessageID != orderUpdate.MessageID || ack.SendID != client.ID {
-		//		return false
-		//	}
-		//case <-time.After(1 * time.Millisecond):
-		//	return false
-		//}
+		if isNewOrder && !isAlone {
+			select {
+			case ack := <-ack_ch:
+				if ack.MessageID != orderUpdate.MessageID || ack.SendID != client.ID {
+					return false
+				}
+			case <-time.After(1 * time.Millisecond):
+				return false
+			}
+		}
 	}
 	buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, com.ButtonLamp{
 		order.Direction, order.Floor, isNewOrder}}
-	for n, client_ := range clients { // Set button light for all clients
+	for n, client_ := range clients { // Set button light for clients
 		if (client_.ID != client.ID && order.Internal) || n == 0 {
 			continue
 		}
 		buttonLightUpdate.RecvID = client.ID
 		send_ch <- buttonLightUpdate
 	}
-	elevator.SetButtonLamp(order.Direction, order.Floor, true)
-	if (client.ID == clients[0].ID) && len(client.Orders) == 0 {
+	elevator.SetButtonLamp(order.Direction, order.Floor, isNewOrder)           // Set button light for this elevator
+	if (client.ID == clients[0].ID) && len(client.Orders) == 0 && isNewOrder { // Start this elevator if it's the first order
 		lOrderSend_ch <- comToElev(order)
 	}
 	return true
@@ -287,6 +294,7 @@ func clientStatusManager() {
 			}
 		}
 		if !clientExists { // New client connected
+			isAlone = false
 			clients = append(clients, &Client{
 				status.ID, status.Active, status.IsMaster, 0, 0, make([]*com.Order, 0, maxOrderSize)})
 

@@ -347,7 +347,7 @@ func clientStatusManager() {
 				
 				if status.IsMaster { 
 					masterID = status.ID // Sets master ID
-					println("masterID:"+strconv.Itoa(masterID)
+					println("masterID:"+strconv.Itoa(masterID))
 					//if masterID = clients[0].ID{
 					//	go activityTimersHandler() // Starts if this elevator is master
 					}

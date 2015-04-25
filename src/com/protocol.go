@@ -60,7 +60,7 @@ type ElevUpdate struct {
 }
 
 type Ack struct{
-	Ack bool
+	Flag bool
 }
 
 func (e ElevUpdate) String() string {
@@ -110,6 +110,7 @@ func (pr headerProtocol) Decode(buffer []byte) (interface{}, bool) {
 			var data Ack
 			json.Unmarshal(rawMessage, &data)
 			message.Data = data
+			println(strconv.Itoa(message.SendID))
 			return message, received
 		}
 

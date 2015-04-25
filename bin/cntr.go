@@ -134,6 +134,7 @@ func netwMessageHandler() {
 				data.Button, data.Floor, data.State)
 		case com.Ack: // Ack message from client
 			println("Ack")
+			println(strconv.FormatBool(data.Flag))
 			ack_ch <- message
 		default: // All other messages
 			println("Default")
@@ -149,7 +150,7 @@ func channelSelector() {
 			transactionManager(&message)
 
 		case order := <-lOrderReceive_ch: // Local orders from elevator
-			//println("lOrder")
+			println("lOrder")
 			order.OriginID = clients[0].ID
 			transactionManager(&com.Header{
 				newMessageID(), clients[0].ID, 0, order})
@@ -158,7 +159,7 @@ func channelSelector() {
 			transactionManager(&com.Header{
 				newMessageID(), clients[0].ID, 0, order})
 		case pos := <-elevPos_ch: // Elevator position has changed
-			//println("elevPos")
+			println("elevPos")
 			transactionManager(&com.Header{
 				newMessageID(), clients[0].ID, 0, pos})
 		}

@@ -84,7 +84,6 @@ func (pr headerProtocol) Decode(buffer []byte) (interface{}, bool) {
 		var message Header
 		json.Unmarshal(rawMessage, &message)
 		rawMessage, _ = json.Marshal(message.Data)
-		println(typeOfMessage)
 		switch typeOfMessage {
 		case "ElevUpdate":
 		case "Position":

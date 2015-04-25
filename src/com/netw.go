@@ -122,7 +122,7 @@ func configMaster() {
 func clientStatusHandler(status_ch chan tcp.ClientStatus) {
 	for {
 		cStatus := <-clientStatus_ch
-		//println(cStatus.String())
+		println(cStatus.String())
 
 		if !isMaster && cStatus.Active == false {
 			status_ch <- cStatus

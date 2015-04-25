@@ -108,6 +108,7 @@ func listenForClients(listenConn *net.TCPListener, receive_ch chan<- interface{}
 		clientExists = false
 		conn, err := listenConn.AcceptTCP()
 		if err != nil {
+			println("lost conn")
 			cStatus_ch <- ClientStatus{-1, false, false} // If network is lost. Does it work?
 			break
 		}

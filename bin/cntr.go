@@ -91,7 +91,7 @@ func activityTimersHandler(){
 			select{
 			case <-client.ActivityTimer.C: // No activity registered on client after given time
 				if clients[0].IsMaster { 
-					if client.Orders != nil{
+					if client.Orders != nil && len(client.Orders) > 0{
 						clients[n].Active = false
 						println("client: "+strconv.Itoa(client.ID)+" inaktiv")
 						for i, order := range clients[n].Orders {
@@ -132,7 +132,7 @@ func netwMessageHandler() {
 			println("buttonLamp")
 			elevator.SetButtonLamp(
 				data.Button, data.Floor, data.State)
-		case nil: // Ack message from client
+		case com.Ack: // Ack message from client
 			println("Ack")
 			ack_ch <- message
 		default: // All other messages
@@ -284,7 +284,7 @@ func transactionManager(message *com.Header) bool {
 						lOrderSend_ch <- comToElev(clients[i].Orders[0]) // Update elevator with order, even if no change
 
 						send_ch <- com.Header{
-							message.MessageID, clients[0].ID, message.SendID, nil} // Ack to master
+							message.MessageID, clients[0].ID, message.SendID, com.Ack{true}}// Ack to master
 					}
 					return true
 				}

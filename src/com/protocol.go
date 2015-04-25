@@ -59,6 +59,10 @@ type ElevUpdate struct {
 	Direction    int
 }
 
+type Ack struct{
+	Ack bool
+}
+
 func (e ElevUpdate) String() string {
 	return "ElevUpdate:" + strconv.Itoa(e.Direction) + "," + strconv.Itoa(e.LastPosition)
 }
@@ -99,6 +103,11 @@ func (pr headerProtocol) Decode(buffer []byte) (interface{}, bool) {
 			return message, received
 		case "ButtonLamp":
 			var data ButtonLamp
+			json.Unmarshal(rawMessage, &data)
+			message.Data = data
+			return message, received
+		case "Ack":
+			var data Ack
 			json.Unmarshal(rawMessage, &data)
 			message.Data = data
 			return message, received

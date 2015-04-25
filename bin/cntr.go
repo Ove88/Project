@@ -149,7 +149,6 @@ func channelSelector() {
 		case order := <-lOrderReceive_ch: // Local orders from elevator
 			//println("lOrder")
 			order.OriginID = clients[0].ID
-			println("order: "+ strconv.Itoa(order.Floor)+" "+ strconv.Itoa(order.Direction))
 			transactionManager(&com.Header{
 				newMessageID(), clients[0].ID, 0, order})
 		case order := <-reCalc_ch: // Recalculate orders from inactive client
@@ -348,6 +347,7 @@ func clientStatusManager() {
 				
 				if status.IsMaster { 
 					masterID = status.ID // Sets master ID
+					println("masterID:"+strconv.Itoa(masterID)
 					//if masterID = clients[0].ID{
 					//	go activityTimersHandler() // Starts if this elevator is master
 					}

@@ -35,7 +35,7 @@ type config struct {
 }
 
 func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{},
-	status_ch chan tcp.ClientStatus, maxNClients int) (localId int, err error) {
+	status_ch chan tcp.ClientStatus, maxNClients int) (int, bool) {
 
 	udpSend_ch = make(chan udp.UdpPacket, 1)
 	udpReceive_ch = make(chan udp.UdpPacket, 1)
@@ -49,11 +49,11 @@ func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{},
 	localID, err = strconv.Atoi(strings.Split(localIP, ".")[3])
 
 	if err != nil {
-		return
+		return 0,false
 	}
 	go clientStatusHandler(status_ch)
 	go startNetwConfig(status_ch)
-	return localID, err
+	return localID, true
 }
 
 func startNetwConfig(status_ch chan tcp.ClientStatus) {

@@ -42,6 +42,7 @@ type Order struct {
 	Internal  bool
 	Floor     int
 	Direction int
+	Cost 	 int
 }
 
 func (o Order) String() string {

@@ -6,7 +6,7 @@ package driver
 import "C"
 
 func IO_init() bool {
-	return bool(int(C.io_init()) != 1)
+	return bool(C.io_init() != 0)
 }
 
 func Set_bit(bit int) {

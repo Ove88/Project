@@ -41,7 +41,7 @@ func Init() bool {
 		return false
 	}
 
-	// Zero all floor button lamps
+	 //Zero all floor button lamps
 	for i := 0; i < N_FLOORS; i++ {
 		if i != 0 {
 			Set_button_indicator(0, i, false)
@@ -57,7 +57,6 @@ func Init() bool {
 	Set_stop_lamp(false)
 	Set_door_open_lamp(false)
 	Set_floor_indicator(0)
-
 	// Return success.
 	return true
 }

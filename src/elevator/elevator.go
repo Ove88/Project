@@ -40,10 +40,11 @@ type Position struct {
 	Direction    int
 }
 
-func Init(sOrder_ch <-chan Order, rOrder_ch chan<- Order, pos_ch chan Position) {
-	driver.Init()
+func Init(sOrder_ch <-chan Order, rOrder_ch chan<- Order, pos_ch chan Position)bool {
+	if !driver.Init(){
+		return false
+	}
 	stopped = false
-	driver.Set_direction(driver.DIRECTION_STOP)
 	button_ch = make(chan ButtonPush)
 	elevPos_ch = make(chan Order)
 	doorOpen_ch = make(chan bool)
@@ -54,6 +55,7 @@ func Init(sOrder_ch <-chan Order, rOrder_ch chan<- Order, pos_ch chan Position) 
 	go orderGenerator(rOrder_ch)
 	go orderHandler(sOrder_ch)
 	go doorHandler()
+	return true
 }
 
 func doorHandler() {
@@ -179,7 +181,7 @@ func SetButtonLamp(button, floor int, state bool) {
 }
 
 func stopLampHandler(pos_ch chan Position) {
-	var flag bool
+	flag := false
 	for {
 		stopBtn := driver.Get_stop_signal()
 		if stopBtn && !flag {

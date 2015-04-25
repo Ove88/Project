@@ -92,6 +92,7 @@ func activityTimersHandler(){
 			case <-client.ActivityTimer.C: // No activity registered on client after given time
 				if clients[0].IsMaster { 
 					clients[n].Active = false
+					println("client: "+strconv.Itoa(client.ID)+" inaktiv")
 					for i, order := range clients[n].Orders {
 						if !order.Internal {
 								reCalc_ch <- client.Orders[i]
@@ -100,6 +101,7 @@ func activityTimersHandler(){
 				}else{
 					select{
 					case <- stopBtn_ch:
+						println("stopbtn")
 						continue
 					case <-time.After(5*time.Millisecond):
 						for{
@@ -170,13 +172,14 @@ func transactionManager(message *com.Header) bool {
 		if clients[0].Active {
 			if clients[0].IsMaster {
 				chosenClient := calc(elevToCom(&data))
-				println(strconv.Itoa(chosenClient.ID))
 				if orderUpdater(elevToCom(&data), &chosenClient, true) {
 					for n, client_ := range clients {
 						if client_.ID == chosenClient.ID {
 							clients[n].Orders = chosenClient.Orders
 						}
 					}
+				}else{
+					//client ikke tatt ordren
 				}
 			} else {
 				message.RecvID = masterID
@@ -196,7 +199,7 @@ func transactionManager(message *com.Header) bool {
 						data.Direction == -1 { // Elevator has reached its destination
 						
 						elevPositionChanged = true
-						println("ankommet etasje")
+						println("Klient "+strconv.Itoa(clients[0].ID)+" har ankommet etasje "+strconv.Itoa(clients[0].LastPosition))
 						clients[0].Orders = clients[0].Orders[1:]
 						clients[0].ActivityTimer = time.NewTimer(8*time.Second)
 						if len(clients[0].Orders) > 0 {
@@ -230,8 +233,16 @@ func transactionManager(message *com.Header) bool {
 		
 	case com.Order: // Remote order from client
 		chosenClient := calc(&data)
-		return orderUpdater(&data, &chosenClient, true)
-
+		if orderUpdater(&data, &chosenClient, true) {
+			for n, client_ := range clients {
+				if client_.ID == chosenClient.ID {
+					clients[n].Orders = chosenClient.Orders
+				}
+			}
+		}else{
+			//client ikke tatt ordren
+		}
+		
 	case com.ElevUpdate: // Status update from client
 		for i, client := range clients {
 
@@ -241,12 +252,11 @@ func transactionManager(message *com.Header) bool {
 				
 				if !client.Active {
 					clients[i].Active = true 
-				}
-				
-				if len(clients[0].Orders) > 0 {
+				}				
+				if len(client.Orders) > 0 {
 					if data.LastPosition == clients[i].Orders[0].Floor &&
 						data.Direction == -1 { // Elevator has reached its destination
-						
+						println("Klient "+strconv.Itoa(client.ID)+" har ankommet etasje "+strconv.Itoa(client.LastPosition))
 						lastOrder := clients[i].Orders[0]
 						clients[i].Orders = clients[i].Orders[1:]
 						orderUpdater(lastOrder, clients[i], false)
@@ -259,7 +269,7 @@ func transactionManager(message *com.Header) bool {
 						clients[i].ActivityTimer = time.NewTimer(4*time.Second)
 					}
 				}
-				break // Rikting?
+				break
 			}
 		}
 	case com.Orders: // Order update from master
@@ -380,6 +390,7 @@ func clientStatusManager() {
 								reCalc_ch <- client.Orders[i]
 							}
 						}
+						clients[n].Orders = nil
 					}
 				}
 				break
@@ -425,8 +436,10 @@ func calc(newOrder *com.Order) Client {
 	var cost Cost
 	var clientCost int
 	var pos int
+	var intpos int
 	var tmpOrder *com.Order
 	last := false
+	internal := false
 	first :=true
 	start := 0
 	number := 0
@@ -449,9 +462,8 @@ func calc(newOrder *com.Order) Client {
 						last = true
 					}
 				}else if newOrder.Internal{
-					start = 0
-					number = 0
-					break
+					internal = true
+					continue
 				}else{
 					if last{
 						break
@@ -484,17 +496,21 @@ func calc(newOrder *com.Order) Client {
 						}
 					}
 				}
+				intpos = pos
 				pos = start + pos
 				clientCost = stopCost + int(math.Abs(float64(newOrder.Floor - tmpOrder.Floor))) + tmpOrder.Cost
 			}else{
 				pos = start
 				clientCost = int(math.Abs(float64(newOrder.Floor - client.LastPosition)))
 			}
-			if clientCost < bestCost {
+			if clientCost < bestCost && !internal {
 				bestCost = clientCost
-				cost = Cost{client, clientCost, pos}
+				cost = Cost{client, bestCost, pos}
 				println("current clientCost: " + strconv.Itoa(clientCost))
 				println("bestCost: " + strconv.Itoa(bestCost))
+			}else if internal{
+				bestCost = clientCost
+				cost = Cost{client,bestCost,intpos}
 			}
 		}else {
 			clientCost = int(math.Abs(float64(newOrder.Floor - client.LastPosition)))
@@ -508,17 +524,34 @@ func calc(newOrder *com.Order) Client {
 		}
 	}
 	newOrders := make([]*com.Order, 0, maxOrderSize)
-	println("Plassering i ordrekø: " + strconv.Itoa(cost.OrderPos))
+	//println("Plassering i ordrekø: " + strconv.Itoa(cost.OrderPos))
 	if cost.OrderPos > 0 {
+		if internal{
+			sliceOfOrders := cost.Client.Orders[start:start+number]
+			sliceOfOrders = append(sliceOfOrders,cost.Client.Orders[0:start]...)
+			newOrders = append(sliceOfOrders,cost.Client.Orders[start+number:]...)
+		}
 		newOrders = append(newOrders, cost.Client.Orders[0:cost.OrderPos]...)
 		newOrders = append(newOrders, newOrder)
 		newOrders = append(newOrders, cost.Client.Orders[cost.OrderPos:]...)
 	} else {
 		newOrders = append(newOrders, newOrder)
-		newOrders = append(newOrders, cost.Client.Orders...)
+		if len(cost.Client.Orders) == 1{
+			newOrders = append(newOrders, cost.Client.Orders[0])
+		}else if len(cost.Client.Orders)>1{
+			newOrders = append(newOrders, cost.Client.Orders...)
+		}
 	}
 	bestClient := Client{cost.Client.ID, cost.Client.Active, cost.Client.IsMaster, cost.Client.LastPosition, cost.Client.Direction, nil,cost.Client.ActivityTimer}
 	bestClient.Orders = newOrders
 	println("Størrelse på ordrekø: " + strconv.Itoa(len(bestClient.Orders)))
+	
+	println("")
+	println("---------------")
+	println("Klient "+strconv.Itoa(bestClient.ID)+" tar bestillingen")
+	println("Drar fra "+strconv.Itoa(bestClient.LastPosition)+".etasje til "+strconv.Itoa(bestClient.Orders[0].Floor)+".etasje")
+	println("Jeg har: " + strconv.Itoa(len(bestClient.Orders))+" ordrer i køen")
+	println("---------------")
+	println("")	
 	return bestClient
 }

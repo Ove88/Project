@@ -7,6 +7,8 @@ import (
 	"math"
 	"time"
 	"strconv"
+	//"strings"
+	//"reflect"
 )
 //TODO Flere trykk på samme knapp
 const (
@@ -281,8 +283,8 @@ func transactionManager(message *com.Header) bool {
 				if client.ID == data.ClientID {
 					clients[i].Orders = data.Orders
 					clientExists = true
-					if i == 0 { // Order for this elevator
-						lOrderSend_ch <- comToElev(clients[i].Orders[0]) // Update elevator with order, even if no change
+					if i == 0 && len(client.Orders)>0 { // Order for this elevator
+						lOrderSend_ch <- comToElev(clients[0].Orders[0]) // Update elevator with order, even if no change
 
 						send_ch <- com.Header{
 							message.MessageID, clients[0].ID, message.SendID, com.Ack{true}}// Ack to master
@@ -308,13 +310,13 @@ func orderUpdater(order *com.Order, client *Client, isNewOrder bool) bool {
 		}
 		orderUpdate.RecvID = client_.ID
 		send_ch <- orderUpdate
-		if isNewOrder && !isAlone {
+		if isNewOrder && !isAlone && client.ID != clients[0].ID {
 			select {
 			case ack := <-ack_ch:
 				if ack.MessageID != orderUpdate.MessageID || ack.SendID != client.ID {
 					return false
 				}
-			case <-time.After(1 * time.Millisecond):
+			case <-time.After(50 * time.Millisecond):
 				return false
 			}
 		}
@@ -330,7 +332,7 @@ func orderUpdater(order *com.Order, client *Client, isNewOrder bool) bool {
 		send_ch <- buttonLightUpdate
 	}
 	elevator.SetButtonLamp(order.Direction, order.Floor, isNewOrder)   // Set button light for this elevator
-	if (client.ID == clients[0].ID){								    //  Update master elevator
+	if (client.ID == clients[0].ID){								    //  Update this elevator
 		lOrderSend_ch <- comToElev(client.Orders[0])							
 	}
 	return true
@@ -543,7 +545,7 @@ func calc(newOrder *com.Order) Client {
 		newOrders = append(newOrders, cost.Client.Orders[cost.OrderPos:]...)
 	} else {
 		newOrders = append(newOrders, newOrder)
-		if cost.Client.Orders != nil{
+		if cost.Client.Orders != nil && len(cost.Client.Orders)>0 {
 			newOrders = append(newOrders, cost.Client.Orders...)
 		}
 	}

@@ -84,9 +84,10 @@ func (pr headerProtocol) Decode(buffer []byte) (interface{}, bool) {
 		var message Header
 		json.Unmarshal(rawMessage, &message)
 		rawMessage, _ = json.Marshal(message.Data)
-
+		println(typeOfMessage)
 		switch typeOfMessage {
 		case "ElevUpdate":
+		case "Position":
 			var data ElevUpdate
 			json.Unmarshal(rawMessage, &data)
 			message.Data = data
@@ -110,7 +111,6 @@ func (pr headerProtocol) Decode(buffer []byte) (interface{}, bool) {
 			var data Ack
 			json.Unmarshal(rawMessage, &data)
 			message.Data = data
-			println(strconv.Itoa(message.SendID))
 			return message, received
 		}
 

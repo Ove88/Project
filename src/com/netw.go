@@ -36,7 +36,7 @@ type config struct {
 
 func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{},
 	status_ch chan tcp.ClientStatus, maxNClients int) (int, bool) {
-
+	var err error
 	udpSend_ch = make(chan udp.UdpPacket, 1)
 	udpReceive_ch = make(chan udp.UdpPacket, 1)
 	clientStatus_ch = make(chan tcp.ClientStatus, 1)

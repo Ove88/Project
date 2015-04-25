@@ -69,6 +69,7 @@ func startNetwConfig(status_ch chan tcp.ClientStatus) {
 		remoteTcpPort, _ := tcp.StartServer(
 			localIP, tcpSend_ch, tcpReceive_ch, clientStatus_ch, newpr, maxNumberOfClients)
 		go announceMaster(remoteTcpPort)
+		//go pollMaster(strings.Split(configData.remoteAddr,":")[0])
 	} else {
 		tcp.StartClient(
 			localIP, configData.remoteAddr, tcpSend_ch, tcpReceive_ch, clientStatus_ch, newpr)
@@ -140,18 +141,40 @@ func clientStatusHandler(status_ch chan tcp.ClientStatus) {
 	}
 }
 
+func pollMaster(masterIP string){
+	for !stopDrainUdp {
+		udpSend_ch<-udp.UdpPacket{masterIP,[]byte(strconv.Itoa(localID))}
+		time.Sleep(400*time.Millisecond)
+	}
+}
+
 func announceMaster(masterPort int) {
 	stopAnnounceMaster = false
 	for !stopAnnounceMaster {
 		udpSend_ch <- udp.UdpPacket{
 			"broadcast", []byte("connect:" + strconv.Itoa(masterPort))}
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(400 * time.Millisecond)
 	}
 }
+//func listenForClientPolls(){
+//	for !stopAnnounceMaster{
+//		select{
+//			case <-udpReceive_ch:
+//				continue
+//			case <-time.After(time.Second): // Lost connection to master
+//				clientStatus_ch<- tcp.ClientStatus{localID,false,false}
+//		}
+//	}
+//}
 
 func drainUdpChan() {
 	stopDrainUdp = false
 	for !stopDrainUdp {
-		<-udpReceive_ch
+		select{
+			case <-udpReceive_ch:
+				continue
+			case <-time.After(time.Second): // Lost connection to master
+				clientStatus_ch<- tcp.ClientStatus{localID,false,false}
+		}
 	}
 }

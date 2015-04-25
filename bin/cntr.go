@@ -91,11 +91,13 @@ func activityTimersHandler(){
 			select{
 			case <-client.ActivityTimer.C: // No activity registered on client after given time
 				if clients[0].IsMaster { 
-					clients[n].Active = false
-					println("client: "+strconv.Itoa(client.ID)+" inaktiv")
-					for i, order := range clients[n].Orders {
-						if !order.Internal {
+					if client.Orders != nil{
+						clients[n].Active = false
+						println("client: "+strconv.Itoa(client.ID)+" inaktiv")
+						for i, order := range clients[n].Orders {
+							if !order.Internal {
 								reCalc_ch <- client.Orders[i]
+							}
 						}
 					}
 				}else{
@@ -540,9 +542,7 @@ func calc(newOrder *com.Order) Client {
 		newOrders = append(newOrders, cost.Client.Orders[cost.OrderPos:]...)
 	} else {
 		newOrders = append(newOrders, newOrder)
-		if len(cost.Client.Orders) == 1{
-			newOrders = append(newOrders, cost.Client.Orders[0])
-		}else if len(cost.Client.Orders)>1{
+		if cost.Client.Orders != nil{
 			newOrders = append(newOrders, cost.Client.Orders...)
 		}
 	}

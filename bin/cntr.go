@@ -10,7 +10,7 @@ import (
 	//"strings"
 	//"reflect"
 )
-//TODO Flere trykk på samme knapp
+//TODO Flere ordre på samme knapp, poll master/client, 
 const (
 	maxOrderSize       int = 50
 	maxNumberOfClients int = 10
@@ -108,8 +108,8 @@ func activityTimersHandler(){
 								continue
 							case <-time.After(10*time.Millisecond):
 								for{
-									if elevator.Init(lOrderSend_ch, lOrderReceive_ch, elevPos_ch){
-										println("elevOK")
+									//if elevator.Init(lOrderSend_ch, lOrderReceive_ch, elevPos_ch){
+									//	println("elevOK")
 										break
 									}
 									time.Sleep(5*time.Second)
@@ -316,7 +316,7 @@ func transactionManager(message *com.Header) bool {
 				if client.ID == data.ClientID {
 					clients[i].Orders = data.Orders
 					clientExists = true
-					if i == 0 && len(client.Orders)>0 { // Order for this elevator
+					if i == 0 && len(clients[0].Orders) > 0 { // Order for this elevator
 						lOrderSend_ch <- comToElev(clients[0].Orders[0]) // Update elevator with order, even if no change
 
 						send_ch <- com.Header{
@@ -397,8 +397,6 @@ func clientStatusManager() {
 				if status.IsMaster { 
 					masterID = status.ID // Sets master ID
 					println("masterID:"+strconv.Itoa(masterID))
-					//if masterID = clients[0].ID{
-					//	go activityTimersHandler() // Starts if this elevator is master
 					}
 				} else if status.ID == masterID && !status.Active { // Removes master ID
 					masterID = -1

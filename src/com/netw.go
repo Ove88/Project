@@ -174,6 +174,7 @@ func drainUdpChan() {
 			case <-udpReceive_ch:
 				continue
 			case <-time.After(time.Second): // Lost connection to master
+			println("lost master")
 				clientStatus_ch<- tcp.ClientStatus{localID,false,false}
 		}
 	}

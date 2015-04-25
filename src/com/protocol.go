@@ -42,7 +42,7 @@ type Order struct {
 	Internal  bool
 	Floor     int
 	Direction int
-	Cost 	 int
+	Cost      int
 }
 
 func (o Order) String() string {
@@ -59,7 +59,7 @@ type ElevUpdate struct {
 	Direction    int
 }
 
-type Ack struct{
+type Ack struct {
 	Flag bool
 }
 

@@ -399,7 +399,11 @@ func clientStatusManager() {
 			isAlone = false
 			clients = append(clients, &Client{
 				status.ID, status.Active, status.IsMaster, 0, 0, make([]*com.Order, 0, maxOrderSize),time.NewTimer(10*time.Second)})
-
+			
+			if status.IsMaster { 
+				masterID = status.ID // Sets master ID
+				println("masterID:"+strconv.Itoa(masterID))
+			}
 			if clients[0].IsMaster {
 				message := com.Header{newMessageID(), clients[0].ID, status.ID, nil}
 				buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, nil}

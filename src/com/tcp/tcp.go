@@ -39,6 +39,7 @@ func (c ClientStatus) String() string {
 }
 
 var (
+	isPolling  bool
 	laddr      *net.TCPAddr
 	raddr      *net.TCPAddr
 	clients    []*client
@@ -149,28 +150,38 @@ func sendPackets(send_ch <-chan IDable, pr Protocol) {
 }
 
 func receivePackets(client_ *client, receive_ch chan<- interface{}, pr Protocol, buffersize int) {
-	nTries := 0
+
 	buffer := make([]byte, buffersize)
 	for {
 		n, err := client_.conn.Read(buffer)
 		if err != nil {
-			if nTries > 9 {
-				client_.active = false
-				client_.conn.Close()
-				cStatus_ch <- ClientStatus{client_.id, client_.active, false}
-				break
-			}
-			nTries++
-			continue
+			client_.active = false
+			client_.conn.Close()
+			cStatus_ch <- ClientStatus{client_.id, client_.active, false}
+			break
 		}
 		nTries = 0
 
 		message, recv := pr.Decode(buffer[0:n])
+		if reflect.TypeOf(message) == string {
+
+		}
 		if recv {
 			receive_ch <- message
 		} else {
 			continue
 		}
+	}
+}
+
+func pollClients(pr Protocol) {
+
+	isPolling = true
+	for isPolling {
+		for client := range clients {
+			client.conn.Write(pr.Encode("keepAlive"))
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 

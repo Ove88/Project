@@ -230,9 +230,12 @@ func transactionManager(message *com.Header, recalc bool) bool {
 					elevPositionChanged = true
 
 					println("Klient " + strconv.Itoa(clients[0].ID) + " har ankommet etasje " + strconv.Itoa(clients[0].LastPosition))
+					lastOrder := clients[0].Orders[0]
 					clients[0].Orders = clients[0].Orders[1:]
+					orderUpdater(lastOrder, clients[0], false)																					//drtxdgdrtddfg
+					
 					clients[0].ActivityTimer = time.NewTimer(15 * time.Second)
-
+					
 					if len(clients[0].Orders) > 0 {
 						lOrderSend_ch <- comToElev(clients[0].Orders[0]) // Update elevator with next order
 					} else {
@@ -442,12 +445,12 @@ func orderUpdater(order *com.Order, client *Client, isNewOrder bool) bool {
 			return false
 		}
 	}
-	if client.ID == clients[0].ID { //  Update order on this(master) elevator
+	if client.ID == clients[0].ID && len(client.Orders) >0 { //  Update order on this(master) elevator                          //fix
 		lOrderSend_ch <- comToElev(client.Orders[0])
 	}
 	// Button light updates
 	if !order.Internal {
-
+		
 		buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, com.ButtonLamp{
 			order.Direction, order.Floor, isNewOrder}}
 
@@ -456,6 +459,7 @@ func orderUpdater(order *com.Order, client *Client, isNewOrder bool) bool {
 				elevator.SetButtonLamp(order.Direction, order.Floor, isNewOrder)
 				continue
 			}
+			println("sender buttonlight")
 			buttonLightUpdate.RecvID = client_.ID
 			send_ch <- buttonLightUpdate
 		}

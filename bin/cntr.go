@@ -301,7 +301,7 @@ func transactionManager(message *com.Header, recalc bool) bool {
 				if len(clients[0].Orders) > 0 {	
 				println("er her inneee")
 					lOrderSend_ch <- comToElev(clients[clientNumber].Orders[0]) // Update elevator with next order				
-				}else if len(clients) > clientNumber {
+				}else if len(clients) > clientNumber+1 {
 					clientNumber+= 1
 					lOrderSend_ch <- comToElev(clients[clientNumber].Orders[0])
 				}
@@ -513,8 +513,7 @@ func clientStatusManager() {
 					masterID = status.ID // Sets master ID
 					println("masterID:" + strconv.Itoa(masterID))
 					
-					if client.ID == clients[0].ID { // Recalc orders of inactive clients after becoming master
-						isAlone = false
+					if client.ID == clients[0].ID && !isAlone { // Recalc orders of inactive clients after becoming master
 						for g,cl := range clients {
 							if !cl.Active && len(cl.Orders) > 0 {
 								println("recalc inaktiv")
@@ -555,8 +554,8 @@ func clientStatusManager() {
 							}
 						}
 					}
-				} else if clients[n].ID != clients[0].ID { // Recalculate orders for inactive client
-
+				} else if clients[n].ID != clients[0].ID && !isAlone { // Recalculate orders for inactive client
+					println("recalculate")
 					clients[n].ActivityTimer.Stop()
 
 					for i, order := range clients[n].Orders {

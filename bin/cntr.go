@@ -284,7 +284,7 @@ func transactionManager(message *com.Header, recalc bool) bool {
 							break
 						}
 					}else{
-						println("er her 4")	
+						println("er her 4hj")	
 						break
 					}	
 				}

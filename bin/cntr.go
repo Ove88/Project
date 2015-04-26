@@ -106,35 +106,7 @@ func activityTimersHandler() {
 							}
 						}
 					}
-						//if client.ID == clients[0].ID {
-						//	select {
-						//	case <-stopBtn_ch:
-						//		println("stopbtn")
-						//		continue
-						//	case <-time.After(10 * time.Millisecond):
-						//		for {
-						//			//if elevator.Init(lOrderSend_ch, lOrderReceive_ch, elevPos_ch){
-						//			//	println("elevOK")
-						//			break
-						//		}
-						//		time.Sleep(5 * time.Second)
-						//	}
-						//}
-					
-				} else {
-					select {
-					case <-stopBtn_ch:
-						println("stopbtn")
-						continue
-					case <-time.After(10 * time.Millisecond):
-						for {
-							// if elevator.Init(lOrderSend_ch, lOrderReceive_ch, elevPos_ch){
-							break
-							//}
-							//time.Sleep(2 * time.Second)
-						}
-					}
-				}
+				} 
 			case <-time.After(100 * time.Millisecond):
 				continue
 			}
@@ -298,13 +270,23 @@ func transactionManager(message *com.Header, recalc bool) bool {
 				
 				clients[clientNumber].Orders = clients[clientNumber].Orders[1:]
 				println("er her 1")
-				if len(clients[clientNumber].Orders) > 0 {	
-				println("er her inneee")
-					lOrderSend_ch <- comToElev(clients[clientNumber].Orders[0]) // Update elevator with next order				
-				}else if len(clients) > clientNumber+1 {
-					println("er her 2")		
-					clientNumber+= 1
-					lOrderSend_ch <- comToElev(clients[clientNumber].Orders[0])
+				for{
+					if len(clients[clientNumber].Orders) > 0 {	
+						println("er her inneee")
+						lOrderSend_ch <- comToElev(clients[clientNumber].Orders[0]) // Update elevator with next order	
+						break			
+					}else if len(clients) > clientNumber+1 {
+						println("er her 2")		
+						clientNumber+= 1
+						if len(clients[clientNumber].Orders)>0{
+							lOrderSend_ch <- comToElev(clients[clientNumber].Orders[0])
+							println("er her 3")	
+							break
+						}
+					}else{
+						println("er her 4")	
+						break
+					}	
 				}
 			
 			}
@@ -384,19 +366,19 @@ func transactionManager(message *com.Header, recalc bool) bool {
 		if !clients[0].IsMaster {
 			for i, client := range clients {
 				if client.ID == data.ClientID {
-					if len(data.Orders) == 0 && len(client.Orders)>0{
-						message.RecvID = message.SendID
-						message.SendID = clients[0].ID
-						message.Data = client.Orders
-						send_ch<-message
-						buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, nil}
-						for _, order := range client.Orders { // Set correct button lights
-							if !order.Internal {
-								buttonLightUpdate.Data = com.ButtonLamp{order.Direction, order.Floor, true}
-								send_ch <- buttonLightUpdate
-							}
-						}
-					}else{
+					//if len(data.Orders) == 0 && len(client.Orders)>0{
+					//	message.RecvID = message.SendID
+					//	message.SendID = clients[0].ID
+					//	message.Data = client.Orders
+					//	send_ch<-message
+					//	buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, nil}
+					//	for _, order := range client.Orders { // Set correct button lights
+					//		if !order.Internal {
+					//			buttonLightUpdate.Data = com.ButtonLamp{order.Direction, order.Floor, true}
+					//			send_ch <- buttonLightUpdate
+					//		}
+					//	}
+					//}else{
 						clients[i].Orders = data.Orders
 						clientExists = true
 					}
@@ -408,18 +390,18 @@ func transactionManager(message *com.Header, recalc bool) bool {
 					}
 					return true
 				}
-			}
+			
 			if !clientExists { //Create new client
 				clients = append(clients, &Client{
 					data.ClientID, false, false, 0, 0, data.Orders, time.NewTimer(10 * time.Second)})
 			}
-		}else { // If master
+		}/*else { // If master
 			for i, client := range clients {
 				if client.ID == data.ClientID {
 					clients[i].Orders = data.Orders
 				}
 			}
-		}
+		}*/
 	}
 	return true
 }
@@ -716,6 +698,7 @@ func calculateClient(newOrder *com.Order) Client {
 						first = false
 						continue
 					} else if last && !first {
+						println("her 14.5")
 						number += 1
 						last = true
 					}

@@ -156,6 +156,7 @@ func netwMessageHandler() {
 				message_ch <- message
 			}
 		default:
+		println("ikke header")
 		}
 	}
 }

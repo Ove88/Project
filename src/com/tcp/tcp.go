@@ -105,6 +105,7 @@ func StartClient(localIPAddr, remoteAddr string, send_ch <-chan IDable,
 
 	conn, err := net.DialTCP("tcp4", laddr, raddr)
 	if err != nil {
+		println(err.Error())
 		conn.Close()
 		return
 	}
@@ -149,7 +150,6 @@ func listenForClients(listenConn *net.TCPListener, receive_ch chan<- interface{}
 			clients = append(clients, &client_)
 			go receivePackets(&client_, receive_ch, newpr.NewProtocol(), newpr.GetBufferSize())
 			cStatus_ch <- ClientStatus{client_.id, client_.active, false}
-
 		}
 	}
 }
@@ -204,7 +204,7 @@ func masterConnTimeoutListener(){
 	active = true
 	for active{
 		select{
-			case <-time.After(10*time.Millisecond):
+			case <-time.After(100*time.Millisecond):
 				continue
 			case <- clients[0].netTimer.C:
 				clients[0].conn.Close()
@@ -217,9 +217,7 @@ func masterConnTimeoutListener(){
 func pollClients(pr Protocol) {
 	var noClients bool
 	active = true
-	
 	for active {
-		time.Sleep(500 * time.Millisecond)
 		noClients = true
 		for n,client := range clients {	
 			select{
@@ -238,6 +236,7 @@ func pollClients(pr Protocol) {
 			active = false
 			listenConn.Close()
 		}
+		time.Sleep(200*time.Millisecond)
 	}
 }
 

@@ -219,6 +219,7 @@ func transactionManager(message *com.Header, recalc bool) bool {
 		clients[0].Direction = data.Direction
 
 		if clients[0].IsMaster {
+			clientNumber = 0 //fix
 			if !clients[0].Active {
 				clients[0].Active = true
 			}
@@ -261,6 +262,7 @@ func transactionManager(message *com.Header, recalc bool) bool {
 				stopBtn_ch <- true
 			}
 		} else if clients[0].Active { // Update to master
+			clientNumber = 0 //fix
 			elevPositionChanged = true
 			message.RecvID = masterID
 			send_ch <- message
@@ -270,8 +272,10 @@ func transactionManager(message *com.Header, recalc bool) bool {
 			if data.LastPosition == clients[clientNumber].Orders[0].Floor &&
 				data.Direction == -1 { 								// Elevator has reached its destination and not active
 				println("Klient " + strconv.Itoa(clients[0].ID) + " har ankommet etasje " + strconv.Itoa(clients[0].LastPosition))
-				
 				clients[clientNumber].Orders = clients[clientNumber].Orders[1:]
+				//if len(clients[0].Orders) > 0 {
+				//	lOrderSend_ch <- comToElev(clients[0].Orders[0]
+				//}
 				println("er her 1")
 				for{
 					if len(clients[clientNumber].Orders) > 0 {	
@@ -529,9 +533,9 @@ func clientStatusManager() {
 					buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, nil}
 
 					for _, client := range clients {
-						if client.ID == status.ID { // Does not update the client with its own list
-							continue
-						}
+						//if client.ID == status.ID { // Does not update the client with its own list //fix
+						//	continue
+						//}
 						message.Data = com.Orders{client.ID, client.Orders}
 						send_ch <- message
 						for _, order := range client.Orders {

@@ -92,9 +92,6 @@ func StartServer(localIPAddr string, send_ch <-chan IDable, receive_ch chan<- in
 func StartClient(localIPAddr, remoteAddr string, send_ch <-chan IDable,
 	receive_ch chan<- interface{}, status_ch chan ClientStatus, newpr NewProtocol) (err error) {
 
-	if newpr == nil {
-		return errors.New("No Protocol")
-	}
 	cStatus_ch = status_ch
 	clients = make([]*client, 0, 1)
 	laddr, err = net.ResolveTCPAddr("tcp4", localIPAddr+":0")
@@ -109,7 +106,7 @@ func StartClient(localIPAddr, remoteAddr string, send_ch <-chan IDable,
 		conn.Close()
 		return
 	}
-
+	println("starter client")
 	client_ := client{true, getClientId(conn), conn,time.NewTimer(2*time.Second)}
 	clients = append(clients, &client_)
 

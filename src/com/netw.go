@@ -110,6 +110,7 @@ func configMaster() {
 					smallestRemoteId = remoteId
 				}
 			case "connect":
+			println("connect from master")
 				remoteTcpPort := strings.Split(string(packet.Data), ":")[1]
 				remoteIPAddr := strings.Split(packet.RemoteAddr, ":")[0]
 

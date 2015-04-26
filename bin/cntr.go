@@ -480,7 +480,6 @@ func elevToCom(order *elevator.Order) *com.Order {
 func comToElev(order *com.Order) elevator.Order {
 	return elevator.Order{order.OriginID, order.Internal, order.Floor, order.Direction}
 }
-
 func calc(newOrder *com.Order) Client {
 	const stopCost int = 1
 	var cost Cost
@@ -501,88 +500,89 @@ func calc(newOrder *com.Order) Client {
 		} else if len(client.Orders) > 0 {
 			for n, order := range client.Orders {
 				if newOrder.Direction == order.Direction {
-					if !last && first {
-						println("er her oppe ")
+					if newOrder.Internal{
+						if newOrder.Direction == 0{
+							if (newOrder.Floor > order.Floor)&&(order.Floor>client.LastPosition){
+								start = n+1
+								continue
+							}else if (newOrder.Floor > order.Floor)&&(order.Floor==client.LastPosition)&&(client.Direction==-1){
+								start = n+1
+								break
+							}else{
+								start = n
+								break
+							}
+						}else{
+							if (newOrder.Floor<order.Floor)&&(order.Floor<(client.LastPosition)){
+								start = n+1
+								continue
+							}else if (newOrder.Floor<order.Floor)&&(order.Floor==client.LastPosition)&&(client.Direction==-1){
+								start = n+1
+								continue
+							}else{
+								start = n
+								break
+							}
+
+						}
+					}
+					if !last && first{
 						start = n
 						number += 1
-						last = false
+						last = true
 						first = false
 						continue
-					} else if last && !first {
+					}else if last && !first{
 						number += 1
 						last = true
-						println("er her")
 					}
-				} else if newOrder.Internal {
-					if newOrder.Direction == order.Direction {
-						if newOrder.Direction == 0 {
-							if (newOrder.Floor > order.Floor) && (order.Floor > client.LastPosition) {
-								start = n + 1
-							} else if (newOrder.Floor > order.Floor) && (order.Floor < client.LastPosition) {
-								start = n
-							}
-						} else {
-							if (newOrder.Floor < order.Floor) && (order.Floor < client.LastPosition) {
-								start = n + 1
-							} else if (newOrder.Floor < order.Floor) && (order.Floor > client.LastPosition) {
-								start = n
-							}
-						}
-					} else {
-						if client.Direction == -1 {
-							start = n
-						} else {
-							start = n + 1
-						}
+				}else if newOrder.Internal{
+					if client.Direction == -1{
+						start = 0
+						break
+					}else{
+						start = n+1
+						continue
 					}
-					println("satt til true")
-					internal = true
-					continue
-				} else {
-					if last {
-						if ((newOrder.Floor <= client.LastPosition) && (newOrder.Direction == 0)) || ((newOrder.Floor >= client.LastPosition) && (newOrder.Direction == 1)) {
-							println("er her nede")
-							start = n + 1
+				}else{
+					if last{
+						if ((newOrder.Floor <= client.LastPosition)&&(newOrder.Direction == 0)) || ((newOrder.Floor >= client.LastPosition)&&(newOrder.Direction==1)){
+							start = n+1
 							number = 0
 							last = false
 							continue
 						}
 						break
 					}
-					start = n + 1
+					start = n+1
 					number = 0
 					continue
 				}
 			}
-			if number != 0 {
+			if number != 0{
 				slice := client.Orders[start : start+number]
-				// lag slice av client.Orders med start = n og lengde number
-				for place, order := range slice {
-					if order != nil {
-						tmpOrder = order
-						println("order.Floor: " + strconv.Itoa(order.Floor))
-						if newOrder.Direction == 0 {
-							if newOrder.Floor > order.Floor {
-								pos = place + 1
-								continue
-							} else {
-								pos = place
-								break
-							}
-						} else {
-							if newOrder.Floor < order.Floor {
-								pos = place + 1
-								continue
-							} else {
-								pos = place
-								break
-							}
+				for place, order := range slice{
+					tmpOrder = order
+					if newOrder.Direction == 0{
+						if newOrder.Floor > order.Floor{
+							pos = place+1
+							continue
+						}else{
+							pos = place
+							break
+						}
+					}else{
+						if newOrder.Floor < order.Floor{
+							pos = place+1
+							continue
+						}else{
+							pos = place
+							break
 						}
 					}
 				}
-				intpos = pos
 				pos = start + pos
-				clientCost = stopCost + int(math.Abs(float64(newOrder.Floor-tmpOrder.Floor))) + tmpOrder.Cost
+				clientCost = stopCost + int(math.Abs(float64(newOrder.Floor - tmpOrder.Floor))) + tmpOrder.Cost
 			} else {
 				pos = start
 				clientCost = int(math.Abs(float64(newOrder.Floor - client.LastPosition)))
@@ -590,23 +590,20 @@ func calc(newOrder *com.Order) Client {
 			if clientCost < bestCost && !internal {
 				bestCost = clientCost
 				cost = Cost{client, bestCost, pos}
-				//println("current clientCost: " + strconv.Itoa(clientCost))
-				//println("bestCost: " + strconv.Itoa(bestCost))
+				println("current clientCost: " + strconv.Itoa(clientCost))
+				println("bestCost: " + strconv.Itoa(bestCost))
 			} else if internal {
 				bestCost = clientCost
 				cost = Cost{client, bestCost, intpos}
 			}
 		} else {
-			if newOrder.Internal {
-				internal = true
-			}
 			clientCost = int(math.Abs(float64(newOrder.Floor - client.LastPosition)))
 			if clientCost < bestCost {
 				bestCost = clientCost
 				newOrder.Cost = bestCost
 				cost = Cost{client, clientCost, 0}
-				//println("current clientCost: " + strconv.Itoa(clientCost))
-				//println("bestCost: " + strconv.Itoa(bestCost))
+				println("current clientCost: " + strconv.Itoa(clientCost))
+				println("bestCost: " + strconv.Itoa(bestCost))
 			}
 		}
 		println("Klient " + strconv.Itoa(cost.Client.ID) + "'s beste kost: " + strconv.Itoa(cost.Cost))
@@ -624,23 +621,183 @@ func calc(newOrder *com.Order) Client {
 		newOrders = append(newOrders, cost.Client.Orders[cost.OrderPos:]...)
 	} else {
 		newOrders = append(newOrders, newOrder)
-		if cost.Client.Orders != nil {
-			if len(cost.Client.Orders) > 0 {
-				newOrders = append(newOrders, cost.Client.Orders...)
-			}
+		if cost.Client.Orders != nil && len(cost.Client.Orders) > 0 {
+			newOrders = append(newOrders, cost.Client.Orders...)
 		}
 	}
 	bestClient := Client{cost.Client.ID, cost.Client.Active, cost.Client.IsMaster, cost.Client.LastPosition, cost.Client.Direction, nil, cost.Client.ActivityTimer}
 	bestClient.Orders = newOrders
-	//println("Størrelse på ordrekø: " + strconv.Itoa(len(bestClient.Orders)))
+	println("Størrelse på ordrekø: " + strconv.Itoa(len(bestClient.Orders)))
 
 	println("")
 	println("---------------")
 	println("Klient " + strconv.Itoa(bestClient.ID) + " tar bestillingen")
 	println("Drar fra " + strconv.Itoa(bestClient.LastPosition) + ".etasje til " + strconv.Itoa(bestClient.Orders[0].Floor) + ".etasje")
-	println("Denne ordren er intern: " + strconv.FormatBool(internal))
 	println("Jeg har: " + strconv.Itoa(len(bestClient.Orders)) + " ordrer i køen")
 	println("---------------")
 	println("")
 	return bestClient
 }
+//func calc(newOrder *com.Order) Client {
+//	const stopCost int = 1
+//	var cost Cost
+//	var clientCost int
+//	var pos int
+//	var intpos int
+//	var tmpOrder *com.Order
+//	last := false
+//	internal := false
+//	first := true
+//	start := 0
+//	number := 0
+//	bestCost := 1000
+
+//	for _, client := range clients {
+//		if ((client.LastPosition < 0) && (client.Direction < 0)) || !client.Active || (client.ID != newOrder.OriginID && newOrder.Internal) {
+//			continue
+//		} else if len(client.Orders) > 0 {
+//			for n, order := range client.Orders {
+//				if newOrder.Direction == order.Direction {
+//					if !last && first {
+//						println("er her oppe ")
+//						start = n
+//						number += 1
+//						last = false
+//						first = false
+//						continue
+//					} else if last && !first {
+//						number += 1
+//						last = true
+//						println("er her")
+//					}
+//				} else if newOrder.Internal {
+//					if newOrder.Direction == order.Direction {
+//						if newOrder.Direction == 0 {
+//							if (newOrder.Floor > order.Floor) && (order.Floor > client.LastPosition) {
+//								start = n + 1
+//							} else if (newOrder.Floor > order.Floor) && (order.Floor < client.LastPosition) {
+//								start = n
+//							}
+//						} else {
+//							if (newOrder.Floor < order.Floor) && (order.Floor < client.LastPosition) {
+//								start = n + 1
+//							} else if (newOrder.Floor < order.Floor) && (order.Floor > client.LastPosition) {
+//								start = n
+//							}
+//						}
+//					} else {
+//						if client.Direction == -1 {
+//							start = n
+//						} else {
+//							start = n + 1
+//						}
+//					}
+//					println("satt til true")
+//					internal = true
+//					continue
+//				} else {
+//					if last {
+//						if ((newOrder.Floor <= client.LastPosition) && (newOrder.Direction == 0)) || ((newOrder.Floor >= client.LastPosition) && (newOrder.Direction == 1)) {
+//							println("er her nede")
+//							start = n + 1
+//							number = 0
+//							last = false
+//							continue
+//						}
+//						break
+//					}
+//					start = n + 1
+//					number = 0
+//					continue
+//				}
+//			}
+//			if number != 0 {
+//				slice := client.Orders[start : start+number]
+//				// lag slice av client.Orders med start = n og lengde number
+//				for place, order := range slice {
+//					if order != nil {
+//						tmpOrder = order
+//						println("order.Floor: " + strconv.Itoa(order.Floor))
+//						if newOrder.Direction == 0 {
+//							if newOrder.Floor > order.Floor {
+//								pos = place + 1
+//								continue
+//							} else {
+//								pos = place
+//								break
+//							}
+//						} else {
+//							if newOrder.Floor < order.Floor {
+//								pos = place + 1
+//								continue
+//							} else {
+//								pos = place
+//								break
+//							}
+//						}
+//					}
+//				}
+//				intpos = pos
+//				pos = start + pos
+//				clientCost = stopCost + int(math.Abs(float64(newOrder.Floor-tmpOrder.Floor))) + tmpOrder.Cost
+//			} else {
+//				pos = start
+//				clientCost = int(math.Abs(float64(newOrder.Floor - client.LastPosition)))
+//			}
+//			if clientCost < bestCost && !internal {
+//				bestCost = clientCost
+//				cost = Cost{client, bestCost, pos}
+//				//println("current clientCost: " + strconv.Itoa(clientCost))
+//				//println("bestCost: " + strconv.Itoa(bestCost))
+//			} else if internal {
+//				bestCost = clientCost
+//				cost = Cost{client, bestCost, intpos}
+//			}
+//		} else {
+//			if newOrder.Internal {
+//				internal = true
+//			}
+//			clientCost = int(math.Abs(float64(newOrder.Floor - client.LastPosition)))
+//			if clientCost < bestCost {
+//				bestCost = clientCost
+//				newOrder.Cost = bestCost
+//				cost = Cost{client, clientCost, 0}
+//				//println("current clientCost: " + strconv.Itoa(clientCost))
+//				//println("bestCost: " + strconv.Itoa(bestCost))
+//			}
+//		}
+//		println("Klient " + strconv.Itoa(cost.Client.ID) + "'s beste kost: " + strconv.Itoa(cost.Cost))
+//	}
+//	newOrders := make([]*com.Order, 0, maxOrderSize)
+//	//println("Plassering i ordrekø: " + strconv.Itoa(cost.OrderPos))
+//	if cost.OrderPos > 0 {
+//		if internal {
+//			sliceOfOrders := cost.Client.Orders[start : start+number]
+//			sliceOfOrders = append(sliceOfOrders, cost.Client.Orders[0:start]...)
+//			newOrders = append(sliceOfOrders, cost.Client.Orders[start+number:]...)
+//		}
+//		newOrders = append(newOrders, cost.Client.Orders[0:cost.OrderPos]...)
+//		newOrders = append(newOrders, newOrder)
+//		newOrders = append(newOrders, cost.Client.Orders[cost.OrderPos:]...)
+//	} else {
+//		newOrders = append(newOrders, newOrder)
+//		if cost.Client.Orders != nil {
+//			if len(cost.Client.Orders) > 0 {
+//				newOrders = append(newOrders, cost.Client.Orders...)
+//			}
+//		}
+//	}
+//	bestClient := Client{cost.Client.ID, cost.Client.Active, cost.Client.IsMaster, cost.Client.LastPosition, cost.Client.Direction, nil, cost.Client.ActivityTimer}
+//	bestClient.Orders = newOrders
+//	//println("Størrelse på ordrekø: " + strconv.Itoa(len(bestClient.Orders)))
+
+//	println("")
+//	println("---------------")
+//	println("Klient " + strconv.Itoa(bestClient.ID) + " tar bestillingen")
+//	println("Drar fra " + strconv.Itoa(bestClient.LastPosition) + ".etasje til " + strconv.Itoa(bestClient.Orders[0].Floor) + ".etasje")
+//	println("Denne ordren er intern: " + strconv.FormatBool(internal))
+//	println("Jeg har: " + strconv.Itoa(len(bestClient.Orders)) + " ordrer i køen")
+//	println("---------------")
+//	println("")
+//	return bestClient
+//}

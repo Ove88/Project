@@ -4,7 +4,7 @@ package elevator
 import (
 	"elevator/driver"
 	"time"
-	//"strconv"
+	"strconv"
 )
 	
 const (
@@ -161,6 +161,7 @@ func elevatorPositionHandler(pos_ch chan Position) {
 				}
 				currentDirection = -1
 				doorOpen_ch <- true
+				println("pos:"+strconv.Itoa(pos))
 				pos_ch <- Position{pos, currentDirection}
 			}
 			//time.Sleep(1 * time.Millisecond)

@@ -10,7 +10,8 @@ import (
 	//"reflect"
 )
 
-//TODO Flere ordre på samme knapp, lokal orderliste
+//TODO Flere ordre på samme knapp, lokal orderliste, kanppetrykk etter inaktiv
+
 const (
 	maxOrderSize       int = 50
 	maxNumberOfClients int = 10
@@ -61,7 +62,7 @@ func main() {
 	clientStatus_ch = make(chan tcp.ClientStatus, 5)
 	lOrderSend_ch = make(chan elevator.Order, 5)
 	lOrderReceive_ch = make(chan elevator.Order, 5)
-	elevPos_ch = make(chan elevator.Position, 1)
+	elevPos_ch = make(chan elevator.Position, 5)
 	ack_ch = make(chan com.Header, 50)
 	message_ch = make(chan com.Header, 50)
 	elevUpdate_ch = make(chan com.Header, 100)
@@ -180,7 +181,7 @@ func channelSelector() {
 				newMessageID(), clients[0].ID, 0, com.Order{
 				order.OriginID,order.Internal,order.Floor,order.Direction,order.Cost}},true)
 		case pos := <-elevPos_ch: // Elevator position has changed
-			//println("elevPos")
+			println("elevPos")
 			transactionManager(&com.Header{
 				newMessageID(), clients[0].ID, 0, pos},false)
 		}
@@ -275,17 +276,28 @@ func transactionManager(message *com.Header, recalc bool) bool {
 				data.Direction == -1 { // Elevator has reached its destination and not active
 				println("Klient " + strconv.Itoa(clients[0].ID) + " har ankommet etasje " + strconv.Itoa(clients[0].LastPosition))
 				for{
-					if clients[0].Orders[0].Internal {
-						lOrderSend_ch <- comToElev(clients[0].Orders[0]) // Update elevator with next order
+					clients[0].Orders = clients[0].Orders[1:]
+					//for n,order:= range clients[0].Orders{
+					//	println("ordre nr"+strconv.Itoa(n)+":"+strconv.Itoa(order.Floor))
+					//}
+					if len(clients[0].Orders) > 0 {	
+						if clients[0].Orders[0].Internal {
+							lOrderSend_ch <- comToElev(clients[0].Orders[0]) // Update elevator with next order
+							break
+						}else if len(clients[0].Orders) > 0 {					
+							clients[0].Orders = clients[0].Orders[1:]
+						}else{
+							break
+						}
+					}else{
 						break
-					}else{					
-						clients[0].Orders = clients[0].Orders[1:]
 					}
 				}			
 			}
 		}
 
 	case com.Order: // Remote order from client, or recalc
+		println("comOrder")
 		orderOK := false
 		for !orderOK {
 			chosenClient := calc(&data)
@@ -309,6 +321,7 @@ func transactionManager(message *com.Header, recalc bool) bool {
 					}
 				}
 			} else { // No ack from client
+				println("no ack")
 				for n, client_ := range clients {
 					if client_.ID == chosenClient.ID {
 						clients[n].Active = false
@@ -483,7 +496,7 @@ func clientStatusManager() {
 							}
 						}
 					}
-				} else { // Recalculate orders for inactive client
+				} else if clients[n].ID != clients[0].ID { // Recalculate orders for inactive client
 
 					clients[n].ActivityTimer.Stop()
 					for i, order := range clients[n].Orders {

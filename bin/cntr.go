@@ -297,13 +297,15 @@ func transactionManager(message *com.Header, recalc bool) bool {
 				println("Klient " + strconv.Itoa(clients[0].ID) + " har ankommet etasje " + strconv.Itoa(clients[0].LastPosition))
 				
 				clients[clientNumber].Orders = clients[clientNumber].Orders[1:]
-
+				println("er her 1")
 				if len(clients[0].Orders) > 0 {	
+				println("er her inneee")
 					lOrderSend_ch <- comToElev(clients[clientNumber].Orders[0]) // Update elevator with next order				
-				}else if len(clients) < clientNumber {
+				}else if len(clients) > clientNumber {
 					clientNumber+= 1
 					lOrderSend_ch <- comToElev(clients[clientNumber].Orders[0])
-				}			
+				}
+				println("er her 2")		
 			}
 		}
 
@@ -321,9 +323,12 @@ func transactionManager(message *com.Header, recalc bool) bool {
 						for i,order := range clients[n].Orders{
 							if order.Floor == data.Floor && 
 								order.Direction == data.Direction { // Removes recalculated order from last queue
-								
-								clients[n].Orders = append(
-								clients[n].Orders[0:i],clients[n].Orders[i+1:]...)
+								if len(clients[n].Orders) < i{
+									clients[n].Orders = append(
+									clients[n].Orders[0:i],clients[n].Orders[i+1:]...)
+								}else{
+									clients[n].Orders = nil
+								}
 								orderOK = true	
 							}								
 						}					
@@ -373,13 +378,27 @@ func transactionManager(message *com.Header, recalc bool) bool {
 				break
 			}
 		}
-	case com.Orders: // Order update from master
+	case com.Orders: // Order updates
 		clientExists := false
 		if !clients[0].IsMaster {
 			for i, client := range clients {
 				if client.ID == data.ClientID {
-					clients[i].Orders = data.Orders
-					clientExists = true
+					if len(client.Orders) > 0 {
+						message.RecvID = message.SendID
+						message.SendID = clients[0].ID
+						message.Data = client.Orders
+						send_ch<-message
+						buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, nil}
+						for _, order := range client.Orders { // Set correct button lights
+							if !order.Internal {
+								buttonLightUpdate.Data = com.ButtonLamp{order.Direction, order.Floor, true}
+								send_ch <- buttonLightUpdate
+							}
+						}
+					}else{
+						clients[i].Orders = data.Orders
+						clientExists = true
+					}
 					if i == 0 && len(clients[0].Orders) > 0 { // Order for this elevator
 						lOrderSend_ch <- comToElev(clients[0].Orders[0]) // Update elevator with order, even if no change
 
@@ -393,10 +412,30 @@ func transactionManager(message *com.Header, recalc bool) bool {
 				clients = append(clients, &Client{
 					data.ClientID, false, false, 0, 0, data.Orders, time.NewTimer(10 * time.Second)})
 			}
+		}else { // If master
+			for i, client := range clients {
+				if client.ID == data.ClientID {
+					clients[i].Orders = data.Orders
+				}
+			}
 		}
 	}
 	return true
 }
+					//message := com.Header{newMessageID(), clients[0].ID, status.ID, nil}
+					//buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, nil}
+//for _, client := range clients { // Update new client with order lists
+					//if len(client.Orders) > 0 {
+					//	message.Data = com.Orders{client.ID, client.Orders}
+					//	send_ch <- message
+					//}
+					//for _, order := range client.Orders { // Set correct button lights
+					//	if !order.Internal {
+					//		buttonLightUpdate.Data = com.ButtonLamp{order.Direction, order.Floor, true}
+					//		send_ch <- buttonLightUpdate
+					//	}
+					//}
+				//}
 
 func orderUpdater(order *com.Order, client *Client, isNewOrder bool) bool {
 	
@@ -459,11 +498,15 @@ func clientStatusManager() {
 				if status.ID == clients[0].ID && client.IsMaster{
 					if !status.IsMaster{
 						isAlone = true
+						println("ØL")
 					}
-				}else if status.ID == clients[0].ID && status.Active{
+				}else if status.ID == clients[0].ID && !client.IsMaster{
 					if !status.Active {
 						isAlone = true
+						println("BRENNEVIN")
 					}
+				}else{
+					isAlone = false
 				}
 								
 				if status.IsMaster {
@@ -518,7 +561,7 @@ func clientStatusManager() {
 
 					for i, order := range clients[n].Orders {
 						if order.Internal{
-							clients[n].Orders = append(
+							clients[n].Orders = append(//TODO
 								clients[n].Orders[0:i],clients[n].Orders[i+1:]...) 	
 						}
 					}
@@ -598,35 +641,45 @@ func calculateClient(newOrder *com.Order) Client {
 			for n, order := range client.Orders {
 				tmpOrder = order
 				if newOrder.Direction == order.Direction {
-					println("her 1")
+					
 					if newOrder.Internal {
 						if order.Internal{
+							println("her 1")
 							start = n+1
+							continue
 						}else if newOrder.Direction == 0 {
 							if (newOrder.Floor > order.Floor) && (order.Floor > client.LastPosition) {
+								println("her 2")
 								start = n + 1
 								continue
 							} else if (newOrder.Floor > order.Floor) && (order.Floor == client.LastPosition) && (client.Direction == -1) {
+								println("her 3")
 								start = n + 1
 								continue
 							} else if (newOrder.Floor > order.Floor) && (newOrder.Floor > (client.LastPosition-1)){
+								println("her 4")
 								start = n+1
 								continue
 							}else{
+								println("her 5")
 								start = n
 								break
 							}
 						} else {
 							if (newOrder.Floor < order.Floor) && (order.Floor < (client.LastPosition)) {
+								println("her 6")
 								start = n + 1
 								continue
 							} else if (newOrder.Floor < order.Floor) && (order.Floor == client.LastPosition) && (client.Direction == -1) {
+								println("her 7")
 								start = n + 1
 								continue
 							} else if (newOrder.Floor < order.Floor) && (newOrder.Floor < (client.LastPosition+1)){
+								println("her 8")
 								start = n + 1
 								continue
 							} else{
+								println("her 9")
 								start = n
 								break
 							}
@@ -635,23 +688,28 @@ func calculateClient(newOrder *com.Order) Client {
 					} else if order.Internal {
 						if newOrder.Direction == 0 {
 							if (newOrder.Floor < order.Floor) && (newOrder.Floor < (client.LastPosition + 1)) {
+								println("her 10")
 								start = n + 1
 								continue
 							} else {
+								println("her 11")
 								start = n
 								break
 							}
 						} else {
 							if (newOrder.Floor > order.Floor) && (newOrder.Floor > (client.LastPosition - 1)) {
+								println("her 12")
 								start = n + 1
 								continue
 							} else {
+								println("her 13")
 								start = n
 								break
 							}
 						}
 					}
 					if !last && first {
+						println("her 14")
 						start = n
 						number += 1
 						last = true
@@ -663,22 +721,26 @@ func calculateClient(newOrder *com.Order) Client {
 					}
 				} else if newOrder.Internal {
 					if order.Internal{
+						println("her 15")
 						start = n+1
 						continue
 					}else if client.Direction == -1 {
 						start = 0
 						break
 					} else {
+						println("her 16")
 						start = n + 1
 						continue
 					}
 				} else if order.Internal {
+					println("her 17")
 					start = n + 1
 					continue
 				} else {
 					if last {
 						if ((newOrder.Floor <= client.LastPosition) && (newOrder.Direction == 0)) || 
 							((newOrder.Floor >= client.LastPosition) && (newOrder.Direction == 1)) {
+							println("her 18")
 							start = n + 1
 							number = 0
 							last = false
@@ -686,17 +748,23 @@ func calculateClient(newOrder *com.Order) Client {
 						}
 						break
 					}
+					println("her 19")
 					start = n + 1
 					number = 0
 					continue
 				}
 			}
 			if number != 0 { //TODO
+				println("client.Orders: "+strconv.Itoa(len(client.Orders)))
+				println("start: "+strconv.Itoa(start))
+				println("number: "+strconv.Itoa(number))
+				println("start+number: "+strconv.Itoa(start+number))
 				slice := client.Orders[start : start+number]
+				
 				for place, order := range slice {
 					tmpOrder = order
 					if newOrder.Direction == 0 {
-						if newOrder.Floor > order.Floor {
+						if newOrder.Floor > order.Floor { //
 							pos = place + 1
 							continue
 						} else {

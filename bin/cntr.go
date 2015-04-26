@@ -314,7 +314,7 @@ func transactionManager(message *com.Header, recalc bool) bool {
 		}
 
 	case com.Order: // Remote order from client, or recalc
-		println("comOrder")
+	
 		orderOK := false
 		for !orderOK {
 			chosenClient := calculateClient(&data)
@@ -325,7 +325,9 @@ func transactionManager(message *com.Header, recalc bool) bool {
 				for n, client_ := range clients {
 					if recalc && clients[n].ID == data.OriginID {
 						for i,order := range clients[n].Orders{
-							if order.Floor == data.Floor && order.Direction == data.Direction { // Removes recalculated order from last queue
+							if order.Floor == data.Floor && 
+								order.Direction == data.Direction { // Removes recalculated order from last queue
+								
 								clients[n].Orders = append(
 								clients[n].Orders[0:i],clients[n].Orders[i+1:]...)
 								orderOK = true	
@@ -338,7 +340,6 @@ func transactionManager(message *com.Header, recalc bool) bool {
 					}
 				}
 			} else { // No ack from client
-				println("no ack")
 				for n, client_ := range clients {
 					if client_.ID == chosenClient.ID {
 						clients[n].Active = false
@@ -466,7 +467,7 @@ func clientStatusManager() {
 					masterID = status.ID // Sets master ID
 					println("masterID:" + strconv.Itoa(masterID))
 					
-					if client.ID == clients[0].ID { // Recalc orders of inactive clients
+					if client.ID == clients[0].ID { // Recalc orders of inactive clients after being master
 						for g,cl := range clients{
 							if !cl.Active && len(cl.Orders) > 0 {
 								println("recalc inaktiv")
@@ -516,14 +517,18 @@ func clientStatusManager() {
 				} else if clients[n].ID != clients[0].ID { // Recalculate orders for inactive client
 
 					clients[n].ActivityTimer.Stop()
+
 					for i, order := range clients[n].Orders {
-						if !order.Internal {
-							clients[n].Orders[i].OriginID = clients[n].ID
-							reCalc_ch <- client.Orders[i]
-						}else{
+						if order.Internal{
 							clients[n].Orders = append(
 								clients[n].Orders[0:i],clients[n].Orders[i+1:]...) 	
 						}
+					}
+					for i, order := range clients[n].Orders {
+						if !order.Internal {
+						clients[n].Orders[i].OriginID = clients[n].ID
+						reCalc_ch <- client.Orders[i]
+						}						
 					}
 				}
 			}

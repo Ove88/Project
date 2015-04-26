@@ -91,7 +91,7 @@ func StartServer(localIPAddr string, send_ch <-chan IDable, receive_ch chan<- in
 
 func StartClient(localIPAddr, remoteAddr string, send_ch <-chan IDable,
 	receive_ch chan<- interface{}, status_ch chan ClientStatus, newpr NewProtocol) (err error) {
-
+	
 	cStatus_ch = status_ch
 	clients = make([]*client, 0, 1)
 	laddr, err = net.ResolveTCPAddr("tcp4", localIPAddr+":0")
@@ -183,7 +183,6 @@ func receivePackets(client_ *client, receive_ch chan<- interface{}, pr Protocol,
 		if recv {
 			switch message.(type){
 				case PollMessage:
-					println("receiving Pollmessage")
 					if !client_.netTimer.Reset(2*time.Second){
 						client_.netTimer = time.NewTimer(2*time.Second)
 					}
@@ -222,7 +221,6 @@ func pollClients(pr Protocol) {
 				case <-time.After(100*time.Millisecond):
 					if client.active {
 						noClients = false
-						println("sending Pollmessage")
 						client.conn.Write(pr.Encode(PollMessage{0,"keepAlive"}))
 					}
 				case <-client.netTimer.C:
@@ -234,7 +232,7 @@ func pollClients(pr Protocol) {
 			active = false
 			listenConn.Close()
 		}
-		time.Sleep(500*time.Millisecond)
+		time.Sleep(800*time.Millisecond)
 	}
 }
 

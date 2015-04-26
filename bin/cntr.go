@@ -499,6 +499,7 @@ func calc(newOrder *com.Order) Client {
 			continue
 		} else if len(client.Orders) > 0 {
 			for n, order := range client.Orders {
+				tmpOrder = order
 				if newOrder.Direction == order.Direction {
 					if newOrder.Internal {
 						if newOrder.Direction == 0 {
@@ -507,8 +508,11 @@ func calc(newOrder *com.Order) Client {
 								continue
 							} else if (newOrder.Floor > order.Floor) && (order.Floor == client.LastPosition) && (client.Direction == -1) {
 								start = n + 1
-								break
-							} else {
+								continue
+							} else if (newOrder.Floor > order.Floor) && (newOrder.Floor > (client.LastPosition-1)){
+								start = n+1
+								continue
+							}else{
 								start = n
 								break
 							}
@@ -519,7 +523,10 @@ func calc(newOrder *com.Order) Client {
 							} else if (newOrder.Floor < order.Floor) && (order.Floor == client.LastPosition) && (client.Direction == -1) {
 								start = n + 1
 								continue
-							} else {
+							} else if (newOrder.Floor < order.Floor) && (newOrder.Floor < (client.LastPosition+1)){
+								start = n + 1
+								continue
+							} else{
 								start = n
 								break
 							}
@@ -603,8 +610,10 @@ func calc(newOrder *com.Order) Client {
 						}
 					}
 				}
+				intpos = pos
 				pos = start + pos
-				clientCost = stopCost + int(math.Abs(float64(newOrder.Floor-tmpOrder.Floor))) + tmpOrder.Cost
+				// ordrepos
+				clientCost = int(math.Abs(float64(client.LastPosition-tmpOrder.Floor))) + pos*stopCost + int(math.Abs(float64(newOrder.Floor-tmpOrder.Floor)))
 			} else {
 				pos = start
 				clientCost = int(math.Abs(float64(newOrder.Floor - client.LastPosition)))

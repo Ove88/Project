@@ -72,6 +72,7 @@ func startNetwConfig(status_ch chan tcp.ClientStatus) {
 				localIP, tcpSend_ch, tcpReceive_ch, clientStatus_ch, newpr, maxNumberOfClients)
 			if err == nil{
 				go announceMaster(remoteTcpPort)
+				go drainUdpChan()
 				ok = true
 			}
 		} else {
@@ -133,7 +134,7 @@ func clientStatusHandler(status_ch chan tcp.ClientStatus) {
 		cStatus := <-clientStatus_ch
 		println(cStatus.String())
 
-		if !isMaster && cStatus.Active == false { // This is slave and master goes inactive
+		if !isMaster && cStatus.Active == false { // Is slave and master goes inactive
 			status_ch <- cStatus
 			if !stopDrainUdp {
 				go startNetwConfig(status_ch)
@@ -141,22 +142,18 @@ func clientStatusHandler(status_ch chan tcp.ClientStatus) {
 			stopDrainUdp = true
 
 		} else if cStatus.ID == -1 { // Master goes inactive 
-			stopAnnounceMaster = true
 			cStatus.ID = localID
 			status_ch <- cStatus
-			go startNetwConfig(status_ch)
+			if !stopAnnounceMaster{
+				go startNetwConfig(status_ch)
+			}
+			stopAnnounceMaster = true
+			stopDrainUdp = true
 		} else {
 			status_ch <- cStatus
 		}
 	}
 }
-
-//func pollMaster(masterIP string){
-//	for !stopDrainUdp {
-//		udpSend_ch <- udp.UdpPacket{masterIP, []byte(strconv.Itoa(localID))}
-//		time.Sleep(400 * time.Millisecond)
-//	}
-//}
 
 func announceMaster(masterPort int) {
 	stopAnnounceMaster = false
@@ -167,27 +164,9 @@ func announceMaster(masterPort int) {
 	}
 }
 
-//func listenForClientPolls(){
-//	for !stopAnnounceMaster{
-//		select{
-//			case <-udpReceive_ch:
-//				continue
-//			case <-time.After(time.Second): // Lost connection to master
-//				clientStatus_ch<- tcp.ClientStatus{localID,false,false}
-//		}
-//	}
-//}
-
 func drainUdpChan() {
 	stopDrainUdp = false
 	for !stopDrainUdp {
 		<-udpReceive_ch
-		//select {
-		//case <-udpReceive_ch:
-		//	continue
-		//case <-time.After(time.Second): // Lost connection to master
-		//	println("lost master")
-		//	clientStatus_ch <- tcp.ClientStatus{localID, false, false}
-		//}
 	}
 }

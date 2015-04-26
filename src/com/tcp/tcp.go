@@ -106,8 +106,7 @@ func StartClient(localIPAddr, remoteAddr string, send_ch <-chan IDable,
 		conn.Close()
 		return
 	}
-	println("starter client")
-	client_ := client{true, getClientId(conn), conn,time.NewTimer(2*time.Second)}
+	client_ := client{true, getClientId(conn), conn,time.NewTimer(5*time.Second)}
 	clients = append(clients, &client_)
 
 	go sendPackets(send_ch, newpr.NewProtocol())
@@ -136,6 +135,7 @@ func listenForClients(listenConn *net.TCPListener, receive_ch chan<- interface{}
 			if id == client.id {
 				clients[i].conn = conn
 				clients[i].active = true
+				clients[i].netTimer = time.NewTimer(2*time.Second)
 				clientExists = true
 				go receivePackets(clients[i], receive_ch, newpr.NewProtocol(), newpr.GetBufferSize())
 				cStatus_ch <- ClientStatus{clients[i].id, clients[i].active, false}
@@ -143,7 +143,7 @@ func listenForClients(listenConn *net.TCPListener, receive_ch chan<- interface{}
 			}
 		}
 		if !clientExists {
-			client_ := client{true, getClientId(conn), conn,time.NewTimer(2*time.Second)}
+			client_ := client{true, getClientId(conn), conn,time.NewTimer(5*time.Second)}
 			clients = append(clients, &client_)
 			go receivePackets(&client_, receive_ch, newpr.NewProtocol(), newpr.GetBufferSize())
 			cStatus_ch <- ClientStatus{client_.id, client_.active, false}
@@ -184,8 +184,8 @@ func receivePackets(client_ *client, receive_ch chan<- interface{}, pr Protocol,
 			switch message.(type){
 				case PollMessage:
 					println("receiving Pollmessage")
-					if !client_.netTimer.Reset(time.Second){
-						client_.netTimer = time.NewTimer(time.Second)
+					if !client_.netTimer.Reset(2*time.Second){
+						client_.netTimer = time.NewTimer(2*time.Second)
 					}
 					client_.conn.Write(pr.Encode(PollMessage{0,"keepAlive"}))
 				default:
@@ -214,11 +214,12 @@ func masterConnTimeoutListener(){
 func pollClients(pr Protocol) {
 	var noClients bool
 	active = true
+	time.Sleep(2*time.Second)
 	for active {
 		noClients = true
 		for n,client := range clients {	
 			select{
-				case <-time.After(10*time.Millisecond):
+				case <-time.After(100*time.Millisecond):
 					if client.active {
 						noClients = false
 						println("sending Pollmessage")
@@ -233,7 +234,7 @@ func pollClients(pr Protocol) {
 			active = false
 			listenConn.Close()
 		}
-		time.Sleep(200*time.Millisecond)
+		time.Sleep(500*time.Millisecond)
 	}
 }
 

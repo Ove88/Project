@@ -34,9 +34,9 @@ type config struct {
 	isMaster   bool
 }
 
-func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{},
-	
+func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{},	
 	status_ch chan tcp.ClientStatus, maxNClients int) (int, bool) {
+	
 	var err error
 	udpSend_ch = make(chan udp.UdpPacket, 1)
 	udpReceive_ch = make(chan udp.UdpPacket, 1)
@@ -70,14 +70,14 @@ func startNetwConfig(status_ch chan tcp.ClientStatus) {
 		if isMaster {
 			remoteTcpPort, err := tcp.StartServer(
 				localIP, tcpSend_ch, tcpReceive_ch, clientStatus_ch, newpr, maxNumberOfClients)
-			if err != nil{
+			if err == nil{
 				go announceMaster(remoteTcpPort)
 				ok = true
 			}
 		} else {
 			err := tcp.StartClient(
 				localIP, configData.remoteAddr, tcpSend_ch, tcpReceive_ch, clientStatus_ch, newpr)
-			if err != nil{
+			if err == nil{
 				go drainUdpChan()
 				ok = true
 			}
@@ -110,7 +110,6 @@ func configMaster() {
 					smallestRemoteId = remoteId
 				}
 			case "connect":
-			println("connect from master")
 				remoteTcpPort := strings.Split(string(packet.Data), ":")[1]
 				remoteIPAddr := strings.Split(packet.RemoteAddr, ":")[0]
 

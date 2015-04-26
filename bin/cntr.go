@@ -500,89 +500,111 @@ func calc(newOrder *com.Order) Client {
 		} else if len(client.Orders) > 0 {
 			for n, order := range client.Orders {
 				if newOrder.Direction == order.Direction {
-					if newOrder.Internal{
-						if newOrder.Direction == 0{
-							if (newOrder.Floor > order.Floor)&&(order.Floor>client.LastPosition){
-								start = n+1
+					if newOrder.Internal {
+						if newOrder.Direction == 0 {
+							if (newOrder.Floor > order.Floor) && (order.Floor > client.LastPosition) {
+								start = n + 1
 								continue
-							}else if (newOrder.Floor > order.Floor)&&(order.Floor==client.LastPosition)&&(client.Direction==-1){
-								start = n+1
+							} else if (newOrder.Floor > order.Floor) && (order.Floor == client.LastPosition) && (client.Direction == -1) {
+								start = n + 1
 								break
-							}else{
+							} else {
 								start = n
 								break
 							}
-						}else{
-							if (newOrder.Floor<order.Floor)&&(order.Floor<(client.LastPosition)){
-								start = n+1
+						} else {
+							if (newOrder.Floor < order.Floor) && (order.Floor < (client.LastPosition)) {
+								start = n + 1
 								continue
-							}else if (newOrder.Floor<order.Floor)&&(order.Floor==client.LastPosition)&&(client.Direction==-1){
-								start = n+1
+							} else if (newOrder.Floor < order.Floor) && (order.Floor == client.LastPosition) && (client.Direction == -1) {
+								start = n + 1
 								continue
-							}else{
+							} else {
 								start = n
 								break
 							}
 
 						}
+					} else if order.Internal {
+						if newOrder.Direction == 0 {
+							if (newOrder.Floor < order.Floor) && (newOrder.Floor < (client.LastPosition + 1)) {
+								start = n + 1
+								continue
+							} else {
+								start = n
+								break
+							}
+						} else {
+							if (newOrder.Floor > order.Floor) && (newOrder.Floor > (client.LastPosition - 1)) {
+								start = n + 1
+								continue
+							} else {
+								start = n
+								break
+							}
+						}
 					}
-					if !last && first{
+					if !last && first {
 						start = n
 						number += 1
 						last = true
 						first = false
 						continue
-					}else if last && !first{
+					} else if last && !first {
 						number += 1
 						last = true
 					}
-				}else if newOrder.Internal{
-					if client.Direction == -1{
+				} else if newOrder.Internal {
+					if client.Direction == -1 {
 						start = 0
 						break
-					}else{
-						start = n+1
+					} else {
+						start = n + 1
 						continue
 					}
-				}else{
-					if last{
-						if ((newOrder.Floor <= client.LastPosition)&&(newOrder.Direction == 0)) || ((newOrder.Floor >= client.LastPosition)&&(newOrder.Direction==1)){
-							start = n+1
+				} else if order.Internal {
+					start = n + 1
+					continue
+				} else {
+					if last {
+						if ((newOrder.Floor <= client.LastPosition) && (newOrder.Direction == 0)) || ((newOrder.Floor >= client.LastPosition) && (newOrder.Direction == 1)) {
+							start = n + 1
 							number = 0
 							last = false
 							continue
 						}
 						break
 					}
-					start = n+1
+					start = n + 1
 					number = 0
 					continue
 				}
 			}
-			if number != 0{
+			if number != 0 {
 				slice := client.Orders[start : start+number]
-				for place, order := range slice{
+				// lag slice av client.Orders med start = n og lengde number
+				for place, order := range slice {
 					tmpOrder = order
-					if newOrder.Direction == 0{
-						if newOrder.Floor > order.Floor{
-							pos = place+1
+					if newOrder.Direction == 0 {
+						if newOrder.Floor > order.Floor {
+							pos = place + 1
 							continue
-						}else{
+						} else {
 							pos = place
 							break
 						}
-					}else{
-						if newOrder.Floor < order.Floor{
-							pos = place+1
+					} else {
+						if newOrder.Floor < order.Floor {
+							pos = place + 1
 							continue
-						}else{
+						} else {
 							pos = place
 							break
 						}
 					}
 				}
 				pos = start + pos
-				clientCost = stopCost + int(math.Abs(float64(newOrder.Floor - tmpOrder.Floor))) + tmpOrder.Cost
+				clientCost = stopCost + int(math.Abs(float64(newOrder.Floor-tmpOrder.Floor))) + tmpOrder.Cost
 			} else {
 				pos = start
 				clientCost = int(math.Abs(float64(newOrder.Floor - client.LastPosition)))

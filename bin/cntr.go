@@ -351,7 +351,6 @@ func transactionManager(message *com.Header, recalc bool) bool {
 					
 					if data.LastPosition == clients[i].Orders[0].Floor &&
 						data.Direction == -1 { // Elevator has reached its destination
-
 						println("---Klient " + strconv.Itoa(client.ID) + " har ankommet etasje " + strconv.Itoa(client.LastPosition)+"---")
 						lastOrder := clients[i].Orders[0]
 						clients[i].Orders = clients[i].Orders[1:]
@@ -752,8 +751,10 @@ func calculateClient(newOrder *com.Order) Client {
 				println("number: "+strconv.Itoa(number))
 				println("start+number: "+strconv.Itoa(start+number))
 				slice:= client.Orders
-				if start + number > len(client.Orders){
+				if start + number > len(client.Orders)&& start<len(client.Orders){
 					slice = client.Orders[start : (len(client.Orders)-1)]
+				}else if start<len(client.Orders)&&start + number < len(client.Orders){
+					slice = client.Orders[start : start+number]
 				}else{
 					slice = client.Orders[start : start+number]
 				}

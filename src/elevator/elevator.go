@@ -4,7 +4,7 @@ package elevator
 import (
 	"elevator/driver"
 	"time"
-	//"strconv"
+	"strconv"
 )
 	
 const (
@@ -151,7 +151,6 @@ func elevatorPositionHandler(pos_ch chan Position) {
 
 				time.Sleep(200 * time.Millisecond)
 				driver.Set_direction(driver.DIRECTION_STOP)
-
 				if order.Internal {
 					driver.Set_button_indicator(2, pos, false)
 				} else {

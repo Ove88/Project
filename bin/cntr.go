@@ -146,23 +146,23 @@ func channelSelector() {
 			transactionManager(&message,false)
 
 		case lorder := <-lOrderReceive_ch: // Local orders from elevator
-			orderExists := false
+			//orderExists := false
 			if clients[0].Active { // Accept order only if active
 				
-				for _,client:= range clients{ // Discard order if it already exists
-					for _,order := range client.Orders{
-						if lorder.Floor == order.Floor && 
-							lorder.Direction == order.Direction && 
-							lorder.Internal == order.Internal{
-							orderExists = true
-						}
-					}
-				}
-				if !orderExists{
+				//for _,client:= range clients{ // Discard order if it already exists
+				//	for _,order := range client.Orders{
+				//		if lorder.Floor == order.Floor && 
+				//			lorder.Direction == order.Direction && 
+				//			lorder.Internal == order.Internal{
+				//			orderExists = true
+				//		}
+				//	}
+				//}
+				//if !orderExists{
 					lorder.OriginID = clients[0].ID
 					transactionManager(&com.Header{
 						newMessageID(), clients[0].ID, 0, lorder},false)
-				}
+				//}
 			}
 		
 		case order := <-reCalc_ch: // Recalculate orders from inactive client
@@ -460,15 +460,17 @@ func orderUpdater(order *com.Order, client *Client, isNewOrder bool) bool {
 
 		for n, client_ := range clients { // Set button light for clients
 			if n == 0 {
+				println("sender buttonlight1:")
 				elevator.SetButtonLamp(order.Direction, order.Floor, isNewOrder)
 				continue
 			}
-			println("sender buttonlight")
+			println("sender buttonlight2")
 			buttonLightUpdate.RecvID = client_.ID
 			send_ch <- buttonLightUpdate
 		}
 	} else if client.ID == clients[0].ID {
-		elevator.SetButtonLamp(2, order.Floor, true)
+		println("sender buttonlight3")
+		elevator.SetButtonLamp(2, order.Floor, isNewOrder)
 	} else { 
 		buttonLightUpdate := com.Header{
 			newMessageID(), clients[0].ID, client.ID, com.ButtonLamp{2, order.Floor, isNewOrder}}
@@ -486,18 +488,17 @@ func clientStatusManager() {
 
 			if client.ID == status.ID {
 				
-				if status.ID == clients[0].ID && client.IsMaster{
-					if !status.IsMaster{
-						isAlone = true
-						println("ØL")
-					}
+				if status.ID == clients[0].ID && status.Active{
+					isAlone = true
+					println("ØL")
+					
 				}else if status.ID == clients[0].ID && !client.IsMaster{
 					if !status.Active {
 						isAlone = true
 						println("BRENNEVIN")
 					}
-				}else{
-					isAlone = false
+				//}else{
+				//	isAlone = false
 				}
 								
 				if status.IsMaster {
@@ -527,7 +528,7 @@ func clientStatusManager() {
 			}
 
 			if clients[0].IsMaster && clients[0].Active && n != 0 {
-
+				isAlone = false //fix
 				if status.Active { // Update existing client with order lists
 					message := com.Header{newMessageID(), clients[0].ID, status.ID, nil}
 					buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, nil}
@@ -750,8 +751,12 @@ func calculateClient(newOrder *com.Order) Client {
 				println("start: "+strconv.Itoa(start))
 				println("number: "+strconv.Itoa(number))
 				println("start+number: "+strconv.Itoa(start+number))
-				slice := client.Orders[start : start+number]
-				
+				slice:= client.Orders
+				if start + number > len(client.Orders){
+					slice = client.Orders[start : (len(client.Orders)-1)]
+				}else{
+					slice = client.Orders[start : start+number]
+				}
 				for place, order := range slice {
 					tmpOrder = order
 					if newOrder.Direction == 0 {

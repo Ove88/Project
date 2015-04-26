@@ -10,7 +10,7 @@ import (
 	//"reflect"
 )
 
-//TODO Flere ordre på samme knapp, lokal orderliste, kanppetrykk etter inaktiv
+//TODO Flere ordre på samme knapp
 
 const (
 	maxOrderSize       int = 50
@@ -145,17 +145,19 @@ func netwMessageHandler() {
 		message_ := <-receive_ch
 
 		switch message := message_.(type) {
+		
 		case com.Header:
 			switch data := message.Data.(type) {
+			
 			case com.ButtonLamp: // Button light update from master
 				println("buttonLamp")
 				elevator.SetButtonLamp(
 					data.Button, data.Floor, data.State)
+			
 			case com.Ack: // Ack message from client
-				//println("Ack")
 				ack_ch <- message
+			
 			default: // All other messages
-				//println("Default")
 				message_ch <- message
 			}
 		default:
@@ -167,21 +169,35 @@ func channelSelector() {
 	for {
 		select {
 		case message := <-message_ch: // Messages from the network
-			//println("netwMess")
 			transactionManager(&message,false)
 
-		case order := <-lOrderReceive_ch: // Local orders from elevator
-			//println("lOrder")
-			order.OriginID = clients[0].ID
-			transactionManager(&com.Header{
-				newMessageID(), clients[0].ID, 0, order},false)
+		case lorder := <-lOrderReceive_ch: // Local orders from elevator
+			orderExists := false
+			if clients[0].Active { // Accept order only if active
+				
+				for _,client:= range clients{ // Discard order if it already exists
+					for _,order := range client.Orders{
+						if lorder.Floor == order.Floor && 
+							lorder.Direction == order.Direction && 
+							lorder.Internal == order.Internal{
+							orderExists = true
+						}
+					}
+				}
+				if !orderExists{
+					lorder.OriginID = clients[0].ID
+					transactionManager(&com.Header{
+						newMessageID(), clients[0].ID, 0, lorder},false)
+				}
+			}
+		
 		case order := <-reCalc_ch: // Recalculate orders from inactive client
 			println("recalc")
 			transactionManager(&com.Header{
 				newMessageID(), clients[0].ID, 0, com.Order{
 				order.OriginID,order.Internal,order.Floor,order.Direction,order.Cost}},true)
+		
 		case pos := <-elevPos_ch: // Elevator position has changed
-			println("elevPos")
 			transactionManager(&com.Header{
 				newMessageID(), clients[0].ID, 0, pos},false)
 		}
@@ -197,7 +213,7 @@ func transactionManager(message *com.Header, recalc bool) bool {
 		for !orderOK {
 			if clients[0].Active {
 				if clients[0].IsMaster {
-					chosenClient := calc(elevToCom(&data))
+					chosenClient := calculateClient(elevToCom(&data))
 					if chosenClient.ID == 0{
 						orderOK = true
 					}
@@ -301,7 +317,7 @@ func transactionManager(message *com.Header, recalc bool) bool {
 		println("comOrder")
 		orderOK := false
 		for !orderOK {
-			chosenClient := calc(&data)
+			chosenClient := calculateClient(&data)
 			if chosenClient.ID == 0{
 				orderOK = true
 			}
@@ -547,14 +563,15 @@ func newMessageID() int {
 	return 1
 }
 
-func elevToCom(order *elevator.Order) *com.Order {
+func elevToCom(order *elevator.Order) *com.Order { // Type converter
 	return &com.Order{order.OriginID, order.Internal, order.Floor, order.Direction, 0}
 }
 
-func comToElev(order *com.Order) elevator.Order {
+func comToElev(order *com.Order) elevator.Order { // Type converter
 	return elevator.Order{order.OriginID, order.Internal, order.Floor, order.Direction}
 }
-func calc(newOrder *com.Order) Client {
+
+func calculateClient(newOrder *com.Order) Client {
 	const stopCost int = 1
 	var cost Cost
 	var clientCost int
@@ -578,8 +595,11 @@ func calc(newOrder *com.Order) Client {
 			for n, order := range client.Orders {
 				tmpOrder = order
 				if newOrder.Direction == order.Direction {
+					println("her 1")
 					if newOrder.Internal {
-						if newOrder.Direction == 0 {
+						if order.Internal{
+							start = n+1
+						}else if newOrder.Direction == 0 {
 							if (newOrder.Floor > order.Floor) && (order.Floor > client.LastPosition) {
 								start = n + 1
 								continue
@@ -639,7 +659,11 @@ func calc(newOrder *com.Order) Client {
 						last = true
 					}
 				} else if newOrder.Internal {
-					if client.Direction == -1 {
+					println("her 2")
+					if order.Internal{
+						start = n+1
+						continue
+					}else if client.Direction == -1 {
 						start = 0
 						break
 					} else {
@@ -647,9 +671,11 @@ func calc(newOrder *com.Order) Client {
 						continue
 					}
 				} else if order.Internal {
+					println("her 3")
 					start = n + 1
 					continue
 				} else {
+					println("her 4")
 					if last {
 						if ((newOrder.Floor <= client.LastPosition) && (newOrder.Direction == 0)) || ((newOrder.Floor >= client.LastPosition) && (newOrder.Direction == 1)) {
 							start = n + 1
@@ -712,7 +738,7 @@ func calc(newOrder *com.Order) Client {
 		println("*****")
 	}
 	
-	if bestCost == 1000{
+	if bestCost == 1000 { // No active client was found 
 		var empty Client
 		return empty
 	}

@@ -4,7 +4,7 @@ package elevator
 import (
 	"elevator/driver"
 	"time"
-	"strconv"
+	//"strconv"
 )
 	
 const (
@@ -47,8 +47,8 @@ func Init(sOrder_ch <-chan Order, rOrder_ch chan<- Order, pos_ch chan Position)b
 	}
 	stopped = false
 	button_ch = make(chan ButtonPush,10)
-	elevPos_ch = make(chan Order,1)
-	doorOpen_ch = make(chan bool,1)
+	elevPos_ch = make(chan Order,10)
+	doorOpen_ch = make(chan bool,5)
 	go elevatorPositionHandler(pos_ch)
 	go floorLampHandler()
 	go stopLampHandler(pos_ch)
@@ -99,7 +99,6 @@ func orderGenerator(rOrder_ch chan<- Order) {
 	for {
 		buttonPush := <-button_ch
 		if buttonPush.Button == 2 { // Internal order
-			//println("ButtonPush.Floor: "+ strconv.Itoa(buttonPush.Floor) + ", CurrentPosition: "+strconv.Itoa(currentPosition))
 			if buttonPush.Floor > currentPosition {
 				rOrder_ch <- Order{0, true, buttonPush.Floor, 0}
 			} else if buttonPush.Floor < currentPosition {
@@ -108,12 +107,12 @@ func orderGenerator(rOrder_ch chan<- Order) {
 				doorOpen_ch <- true
 			}
 		} else if buttonPush.Floor == currentPosition && currentDirection == -1 {
-			doorOpen_ch <- true
-
+			if !doorOpen{
+					doorOpen_ch <- true
+			}
 		} else {
 			rOrder_ch <- Order{0, false, buttonPush.Floor, buttonPush.Button}
 		}
-		//println("Floor: "+strconv.Itoa(buttonPush.Floor)+", Button:"+strconv.Itoa(buttonPush.Button))
 	}
 }
 
@@ -140,12 +139,11 @@ func elevatorPositionHandler(pos_ch chan Position) {
 		case order = <-elevPos_ch:
 			arrived = false
 			continue
-		case <-time.After(1 * time.Millisecond):
+		case <-time.After(10 * time.Millisecond):
 
 			pos = driver.Get_floor_sensor_signal()
 			if pos != -1 && lastPos != pos {
 				currentPosition = pos
-				//println("currentPos:"+strconv.Itoa(currentPosition))
 				pos_ch <- Position{pos, currentDirection}
 			}
 			if pos == order.Floor && !arrived {
@@ -160,11 +158,11 @@ func elevatorPositionHandler(pos_ch chan Position) {
 					driver.Set_button_indicator(order.Direction, pos, false)
 				}
 				currentDirection = -1
-				doorOpen_ch <- true
-				println("pos:"+strconv.Itoa(pos))
+				if !doorOpen{
+					doorOpen_ch <- true	
+				}			
 				pos_ch <- Position{pos, currentDirection}
 			}
-			//time.Sleep(1 * time.Millisecond)
 			lastPos = pos
 		}
 	}
@@ -173,7 +171,6 @@ func elevatorPositionHandler(pos_ch chan Position) {
 func floorLampHandler() {
 	for {
 		driver.Set_floor_indicator(driver.Get_floor_sensor_signal())
-		//println(strconv.Itoa(currentPosition))
 		time.Sleep(1 * time.Millisecond)
 	}
 }

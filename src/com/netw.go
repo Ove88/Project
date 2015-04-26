@@ -58,23 +58,30 @@ func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{},
 }
 
 func startNetwConfig(status_ch chan tcp.ClientStatus) {
+	ok := false
+	for !ok { 
+		newpr := NewHeaderProtocol{tcpReceiveBufferSize}
+		go configMaster()
 
-	newpr := NewHeaderProtocol{tcpReceiveBufferSize}
-	go configMaster()
+		configData := <-config_ch
+		isMaster = configData.isMaster
+		status_ch <- tcp.ClientStatus{localID, true, isMaster}
 
-	configData := <-config_ch
-	isMaster = configData.isMaster
-	status_ch <- tcp.ClientStatus{localID, true, isMaster}
-
-	if isMaster {
-		remoteTcpPort, _ := tcp.StartServer(
-			localIP, tcpSend_ch, tcpReceive_ch, clientStatus_ch, newpr, maxNumberOfClients)
-		go announceMaster(remoteTcpPort)
-		//go pollMaster(strings.Split(configData.remoteAddr,":")[0])
-	} else {
-		tcp.StartClient(
-			localIP, configData.remoteAddr, tcpSend_ch, tcpReceive_ch, clientStatus_ch, newpr)
-		go drainUdpChan()
+		if isMaster {
+			remoteTcpPort, err := tcp.StartServer(
+				localIP, tcpSend_ch, tcpReceive_ch, clientStatus_ch, newpr, maxNumberOfClients)
+			if err != nil{
+				go announceMaster(remoteTcpPort)
+				ok = true
+			}
+		} else {
+			err := tcp.StartClient(
+				localIP, configData.remoteAddr, tcpSend_ch, tcpReceive_ch, clientStatus_ch, newpr)
+			if err != nil{
+				go drainUdpChan()
+				ok = true
+			}
+		}
 	}
 }
 

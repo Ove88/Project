@@ -105,7 +105,6 @@ func StartClient(localIPAddr, remoteAddr string, send_ch <-chan IDable,
 
 	conn, err := net.DialTCP("tcp4", laddr, raddr)
 	if err != nil {
-		println(err.Error())
 		conn.Close()
 		return
 	}
@@ -187,6 +186,7 @@ func receivePackets(client_ *client, receive_ch chan<- interface{}, pr Protocol,
 		if recv {
 			switch message.(type){
 				case PollMessage:
+					println("receiving Pollmessage")
 					if !client_.netTimer.Reset(time.Second){
 						client_.netTimer = time.NewTimer(time.Second)
 					}
@@ -219,12 +219,14 @@ func pollClients(pr Protocol) {
 	active = true
 	
 	for active {
+		time.Sleep(500 * time.Millisecond)
 		noClients = true
 		for n,client := range clients {	
 			select{
 				case <-time.After(10*time.Millisecond):
 					if client.active {
 						noClients = false
+						println("sending Pollmessage")
 						client.conn.Write(pr.Encode(PollMessage{0,"keepAlive"}))
 					}
 				case <-client.netTimer.C:
@@ -236,7 +238,6 @@ func pollClients(pr Protocol) {
 			active = false
 			listenConn.Close()
 		}
-		time.Sleep(500 * time.Millisecond)
 	}
 }
 

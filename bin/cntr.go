@@ -192,21 +192,22 @@ func transactionManager(message *com.Header, recalc bool) bool {
 	switch data := message.Data.(type) {
 
 	case elevator.Order: // Local order
-		for{
+		orderOK = false
+		for !orderOK {
 			if clients[0].Active {
 				if clients[0].IsMaster {
 					chosenClient := calc(elevToCom(&data))
 					if chosenClient.ID == 0{
-						break
+						orderOK = true
 					}
 					if orderUpdater(elevToCom(&data), &chosenClient, true) {
 						for n, client_ := range clients {
 							if client_.ID == chosenClient.ID {
 								clients[n].Orders = chosenClient.Orders
+								orderOK = true
 								break
 							}
 						}
-						break
 					} else { // No ack from client
 						for n, client_ := range clients {
 							if client_.ID == chosenClient.ID {
@@ -285,26 +286,28 @@ func transactionManager(message *com.Header, recalc bool) bool {
 		}
 
 	case com.Order: // Remote order from client, or recalc
-		for {
+		orderOK := false
+		for !orderOK {
 			chosenClient := calc(&data)
 			if chosenClient.ID == 0{
-				break
+				orderOK = true
 			}
 			if orderUpdater(&data, &chosenClient, true) {
 				for n, client_ := range clients {
 					if recalc && clients[n].ID == data.OriginID {
 						for i,order := range clients[n].Orders{
-							if order.Floor == data.Floor && order.Direction == data.Direction {
+							if order.Floor == data.Floor && order.Direction == data.Direction { // Removes recalculated order from last queue
 								clients[n].Orders = append(
-								clients[n].Orders[0:i],clients[n].Orders[i+1:]...) 		
+								clients[n].Orders[0:i],clients[n].Orders[i+1:]...)
+								orderOK = true		
 							}								
 						}					
 					}
 					if client_.ID == chosenClient.ID {
-						clients[n].Orders = chosenClient.Orders						
+						clients[n].Orders = chosenClient.Orders	
+						orderOK = true					
 					}
 				}
-				break
 			} else { // No ack from client
 				for n, client_ := range clients {
 					if client_.ID == chosenClient.ID {
@@ -487,6 +490,9 @@ func clientStatusManager() {
 						if !order.Internal {
 							clients[n].Orders[i].OriginID = clients[n].ID
 							reCalc_ch <- client.Orders[i]
+						}else{
+							clients[n].Orders = append(
+								clients[n].Orders[0:i],clients[n].Orders[i+1:]...) 	
 						}
 					}
 				}
@@ -500,15 +506,17 @@ func clientStatusManager() {
 
 			if status.IsMaster {
 				masterID = status.ID // Sets master ID
-				//println("masterID:" + strconv.Itoa(masterID))
+				println("masterID:" + strconv.Itoa(masterID))
 			}
 			if clients[0].IsMaster {
 				message := com.Header{newMessageID(), clients[0].ID, status.ID, nil}
 				buttonLightUpdate := com.Header{newMessageID(), clients[0].ID, 0, nil}
 
 				for _, client := range clients { // Update new client with order lists
-					message.Data = com.Orders{client.ID, client.Orders}
-					send_ch <- message
+					if len(client.Orders) > 0 {
+						message.Data = com.Orders{client.ID, client.Orders}
+						send_ch <- message
+					}
 					for _, order := range client.Orders { // Set correct button lights
 						if !order.Internal {
 							buttonLightUpdate.Data = com.ButtonLamp{order.Direction, order.Floor, true}

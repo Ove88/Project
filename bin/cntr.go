@@ -448,7 +448,7 @@ func clientStatusManager() {
 
 			if status.IsMaster {
 				masterID = status.ID // Sets master ID
-				println("masterID:" + strconv.Itoa(masterID))
+				//println("masterID:" + strconv.Itoa(masterID))
 			}
 			if clients[0].IsMaster {
 				message := com.Header{newMessageID(), clients[0].ID, status.ID, nil}
@@ -614,6 +614,7 @@ func calc(newOrder *com.Order) Client {
 				pos = start + pos
 				// ordrepos
 				clientCost = int(math.Abs(float64(client.LastPosition-tmpOrder.Floor))) + pos*stopCost + int(math.Abs(float64(newOrder.Floor-tmpOrder.Floor)))
+				//println("Clientcost etter kalkulering: "+strconv.Itoa(clientCost))
 			} else {
 				pos = start
 				clientCost = int(math.Abs(float64(newOrder.Floor - client.LastPosition)))
@@ -621,8 +622,8 @@ func calc(newOrder *com.Order) Client {
 			if clientCost < bestCost && !internal {
 				bestCost = clientCost
 				cost = Cost{client, bestCost, pos}
-				println("current clientCost: " + strconv.Itoa(clientCost))
-				println("bestCost: " + strconv.Itoa(bestCost))
+				//println("current clientCost: " + strconv.Itoa(clientCost))
+				//println("bestCost: " + strconv.Itoa(bestCost))
 			} else if internal {
 				bestCost = clientCost
 				cost = Cost{client, bestCost, intpos}
@@ -633,11 +634,13 @@ func calc(newOrder *com.Order) Client {
 				bestCost = clientCost
 				newOrder.Cost = bestCost
 				cost = Cost{client, clientCost, 0}
-				println("current clientCost: " + strconv.Itoa(clientCost))
-				println("bestCost: " + strconv.Itoa(bestCost))
+				//println("current clientCost: " + strconv.Itoa(clientCost))
+				//println("bestCost: " + strconv.Itoa(bestCost))
 			}
 		}
+		println("---------------")
 		println("Klient " + strconv.Itoa(cost.Client.ID) + "'s beste kost: " + strconv.Itoa(cost.Cost))
+		println("---------------")
 	}
 	newOrders := make([]*com.Order, 0, maxOrderSize)
 	//println("Plassering i ordrekø: " + strconv.Itoa(cost.OrderPos))
@@ -658,7 +661,7 @@ func calc(newOrder *com.Order) Client {
 	}
 	bestClient := Client{cost.Client.ID, cost.Client.Active, cost.Client.IsMaster, cost.Client.LastPosition, cost.Client.Direction, nil, cost.Client.ActivityTimer}
 	bestClient.Orders = newOrders
-	println("Størrelse på ordrekø: " + strconv.Itoa(len(bestClient.Orders)))
+	//println("Størrelse på ordrekø: " + strconv.Itoa(len(bestClient.Orders)))
 
 	println("")
 	println("---------------")

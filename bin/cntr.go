@@ -192,7 +192,7 @@ func transactionManager(message *com.Header, recalc bool) bool {
 	switch data := message.Data.(type) {
 
 	case elevator.Order: // Local order
-		orderOK = false
+		orderOK := false
 		for !orderOK {
 			if clients[0].Active {
 				if clients[0].IsMaster {

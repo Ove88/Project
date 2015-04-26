@@ -342,7 +342,7 @@ func orderUpdater(order *com.Order, client *Client, isNewOrder bool) bool {
 		orderUpdate.RecvID = client_.ID
 		send_ch <- orderUpdate
 	}
-	if isNewOrder && !isAlone && client.ID != clients[0].ID {
+	if isNewOrder && !isAlone && client.ID != clients[0].ID { // Wait for Ack if order is sent to another client
 		select {
 		case ack := <-ack_ch:
 			if ack.MessageID != orderUpdate.MessageID || ack.SendID != client.ID {
@@ -352,7 +352,7 @@ func orderUpdater(order *com.Order, client *Client, isNewOrder bool) bool {
 			return false
 		}
 	}
-	if client.ID == clients[0].ID { //  Update order on this elevator
+	if client.ID == clients[0].ID { //  Update order on this(master) elevator
 		lOrderSend_ch <- comToElev(client.Orders[0])
 	}
 	// Button light updates

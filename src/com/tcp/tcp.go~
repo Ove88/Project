@@ -5,8 +5,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"reflect"
-	"time"
 )
 
 type Protocol interface {
@@ -28,7 +26,6 @@ type client struct {
 	active bool
 	id     int
 	conn   *net.TCPConn
-	netTimer *time.Timer
 }
 
 type ClientStatus struct {
@@ -41,24 +38,10 @@ func (c ClientStatus) String() string {
 	return strconv.Itoa(c.ID) + ":" + strconv.FormatBool(c.Active)
 }
 
-type PollMessage struct{
-	recvID 	int
-	message string
-}
-
-func (p PollMessage) GetType() string{
-	return strings.Split(reflect.TypeOf(p).String(), ".")[1]
-}
-
-func (p PollMessage) RemoteID() int{
-	return p.recvID
-}
-
 var (
-	active  bool
+	isPolling  bool
 	laddr      *net.TCPAddr
 	raddr      *net.TCPAddr
-	listenConn *net.TCPListener
 	clients    []*client
 	cStatus_ch chan ClientStatus
 )
@@ -76,7 +59,7 @@ func StartServer(localIPAddr string, send_ch <-chan IDable, receive_ch chan<- in
 		return
 	}
 
-	listenConn, err = net.ListenTCP("tcp4", laddr)
+	listenConn, err := net.ListenTCP("tcp4", laddr)
 	if err != nil {
 		listenConn.Close()
 		return
@@ -85,7 +68,6 @@ func StartServer(localIPAddr string, send_ch <-chan IDable, receive_ch chan<- in
 
 	go listenForClients(listenConn, receive_ch, newpr)
 	go sendPackets(send_ch, newpr.NewProtocol())
-	go pollClients(newpr.NewProtocol())
 	return
 }
 
@@ -93,7 +75,7 @@ func StartClient(localIPAddr, remoteAddr string, send_ch <-chan IDable,
 	receive_ch chan<- interface{}, status_ch chan ClientStatus, newpr NewProtocol) (err error) {
 
 	if newpr == nil {
-		return errors.New("No Protocol")
+		return errors.New("Protocol")
 	}
 	cStatus_ch = status_ch
 	clients = make([]*client, 0, 1)
@@ -110,13 +92,12 @@ func StartClient(localIPAddr, remoteAddr string, send_ch <-chan IDable,
 		return
 	}
 
-	client_ := client{true, getClientId(conn), conn,time.NewTimer(2*time.Second)}
+	client_ := client{true, getClientId(conn), conn}
 	clients = append(clients, &client_)
 
 	go sendPackets(send_ch, newpr.NewProtocol())
 	go receivePackets(&client_, receive_ch, newpr.NewProtocol(), newpr.GetBufferSize())
-	go masterConnTimeoutListener()
-	
+
 	cStatus_ch <- ClientStatus{client_.id, client_.active, true}
 	return
 }
@@ -128,10 +109,8 @@ func listenForClients(listenConn *net.TCPListener, receive_ch chan<- interface{}
 		clientExists = false
 		conn, err := listenConn.AcceptTCP()
 		if err != nil {
-			println("Closing listenconn")
-			active = false
-			listenConn.Close()
-			cStatus_ch <- ClientStatus{-1, false, false}
+			println("lost conn")
+			cStatus_ch <- ClientStatus{-1, false, false} // If network is lost. Does it work?
 			break
 		}
 		id := getClientId(conn)
@@ -146,7 +125,7 @@ func listenForClients(listenConn *net.TCPListener, receive_ch chan<- interface{}
 			}
 		}
 		if !clientExists {
-			client_ := client{true, getClientId(conn), conn,time.NewTimer(2*time.Second)}
+			client_ := client{true, getClientId(conn), conn}
 			clients = append(clients, &client_)
 			go receivePackets(&client_, receive_ch, newpr.NewProtocol(), newpr.GetBufferSize())
 			cStatus_ch <- ClientStatus{client_.id, client_.active, false}
@@ -156,8 +135,7 @@ func listenForClients(listenConn *net.TCPListener, receive_ch chan<- interface{}
 }
 
 func sendPackets(send_ch <-chan IDable, pr Protocol) {
-	active = true
-	for active{
+	for {
 		message, ok := <-send_ch
 		if !ok {
 			break
@@ -172,73 +150,40 @@ func sendPackets(send_ch <-chan IDable, pr Protocol) {
 }
 
 func receivePackets(client_ *client, receive_ch chan<- interface{}, pr Protocol, buffersize int) {
-	
+
 	buffer := make([]byte, buffersize)
 	for {
 		n, err := client_.conn.Read(buffer)
 		if err != nil {
-			println("closing clientconn")
 			client_.active = false
 			client_.conn.Close()
 			cStatus_ch <- ClientStatus{client_.id, client_.active, false}
 			break
 		}
+		
+
 		message, recv := pr.Decode(buffer[0:n])
+		if reflect.TypeOf(message) == string {
+
+		}
 		if recv {
-			switch message.(type){
-				case PollMessage:
-					if !client_.netTimer.Reset(time.Second){
-						client_.netTimer = time.NewTimer(time.Second)
-					}
-					client_.conn.Write(pr.Encode(PollMessage{0,"keepAlive"}))
-				default:
-					receive_ch <- message
-			}		
+			receive_ch <- message
 		} else {
 			continue
 		}
 	}
 }
 
-func masterConnTimeoutListener(){
-	active = true
-	for active{
-		select{
-			case <-time.After(10*time.Millisecond):
-				continue
-			case <- clients[0].netTimer.C:
-				clients[0].conn.Close()
-				clients[0].active = false
-				active = false	
-		}
-	}
-}
+//func pollClients(pr Protocol) {
 
-func pollClients(pr Protocol) {
-	var noClients bool
-	active = true
-	
-	for active {
-		noClients = true
-		for n,client := range clients {	
-			select{
-				case <-time.After(10*time.Millisecond):
-					if client.active {
-						noClients = false
-						client.conn.Write(pr.Encode(PollMessage{0,"keepAlive"}))
-					}
-				case <-client.netTimer.C:
-					clients[n].conn.Close()
-					clients[n].active = false
-			}
-		}
-		if noClients{
-			active = false
-			listenConn.Close()
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-}
+//	isPolling = true
+//	for isPolling {
+//		for client := range clients {
+//			client.conn.Write(pr.Encode("keepAlive"))
+//		}
+//		time.Sleep(500 * time.Millisecond)
+//	}
+//}
 
 func getClientId(conn *net.TCPConn) (id int) {
 

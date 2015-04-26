@@ -35,6 +35,7 @@ type config struct {
 }
 
 func Init(send_ch <-chan tcp.IDable, receive_ch chan<- interface{},
+	
 	status_ch chan tcp.ClientStatus, maxNClients int) (int, bool) {
 	var err error
 	udpSend_ch = make(chan udp.UdpPacket, 1)
@@ -125,12 +126,14 @@ func clientStatusHandler(status_ch chan tcp.ClientStatus) {
 		cStatus := <-clientStatus_ch
 		println(cStatus.String())
 
-		if !isMaster && cStatus.Active == false {
+		if !isMaster && cStatus.Active == false { // This is slave and master goes inactive
 			status_ch <- cStatus
+			if !stopDrainUdp {
+				go startNetwConfig(status_ch)
+			}
 			stopDrainUdp = true
-			go startNetwConfig(status_ch) //Bare en gang?
 
-		} else if cStatus.ID == -1 {
+		} else if cStatus.ID == -1 { // Master goes inactive 
 			stopAnnounceMaster = true
 			cStatus.ID = localID
 			status_ch <- cStatus
@@ -141,12 +144,12 @@ func clientStatusHandler(status_ch chan tcp.ClientStatus) {
 	}
 }
 
-func pollMaster(masterIP string){
-	for !stopDrainUdp {
-		udpSend_ch <- udp.UdpPacket{masterIP, []byte(strconv.Itoa(localID))}
-		time.Sleep(400 * time.Millisecond)
-	}
-}
+//func pollMaster(masterIP string){
+//	for !stopDrainUdp {
+//		udpSend_ch <- udp.UdpPacket{masterIP, []byte(strconv.Itoa(localID))}
+//		time.Sleep(400 * time.Millisecond)
+//	}
+//}
 
 func announceMaster(masterPort int) {
 	stopAnnounceMaster = false
@@ -171,12 +174,13 @@ func announceMaster(masterPort int) {
 func drainUdpChan() {
 	stopDrainUdp = false
 	for !stopDrainUdp {
-		select {
-		case <-udpReceive_ch:
-			continue
-		case <-time.After(time.Second): // Lost connection to master
-			println("lost master")
-			clientStatus_ch <- tcp.ClientStatus{localID, false, false}
-		}
+		<-udpReceive_ch
+		//select {
+		//case <-udpReceive_ch:
+		//	continue
+		//case <-time.After(time.Second): // Lost connection to master
+		//	println("lost master")
+		//	clientStatus_ch <- tcp.ClientStatus{localID, false, false}
+		//}
 	}
 }

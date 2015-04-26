@@ -67,7 +67,7 @@ func sendPackets(conn *net.UDPConn, send_ch <-chan UdpPacket) {
 		if packet.RemoteAddr == "broadcast" {
 			conn.WriteToUDP(packet.Data, baddr)
 		} else {
-			raddr, _ := net.ResolveUDPAddr("udp4", packet.RemoteAddr+":"+strconv.Itoa(laddr.Port))
+			raddr, _ := net.ResolveUDPAddr("udp4", packet.RemoteAddr)
 
 			_, err := conn.WriteToUDP(packet.Data, raddr)
 			if err != nil {

@@ -59,12 +59,12 @@ type ElevUpdate struct {
 	Direction    int
 }
 
-type Ack struct {
-	Flag bool
-}
-
 func (e ElevUpdate) String() string {
 	return "ElevUpdate:" + strconv.Itoa(e.Direction) + "," + strconv.Itoa(e.LastPosition)
+}
+
+type Ack struct {
+	Flag bool
 }
 
 type ButtonLamp struct {
@@ -81,6 +81,11 @@ func (pr headerProtocol) Decode(buffer []byte) (interface{}, bool) {
 	rawMessage, typeOfMessage, received := pr.unwrapMessage()
 
 	if received {
+		if typeOfMessage == "PollMessage" {
+			var data tcp.PollMessage
+			json.Unmarshal(rawMessage, &data)
+			return data, received
+		} else {			
 		var message Header
 		json.Unmarshal(rawMessage, &message)
 		rawMessage, _ = json.Marshal(message.Data)
@@ -111,8 +116,8 @@ func (pr headerProtocol) Decode(buffer []byte) (interface{}, bool) {
 			json.Unmarshal(rawMessage, &data)
 			message.Data = data
 			return message, received
+			}
 		}
-
 		//// Legg til ny case for hver nye datastruct her ////
 	}
 	return nil, received

@@ -220,6 +220,7 @@ func transactionManager(message *com.Header, recalc bool) bool {
 				} else {
 					message.RecvID = masterID
 					send_ch <- message
+					orderOK = true
 				}
 			}
 		}
@@ -311,7 +312,7 @@ func transactionManager(message *com.Header, recalc bool) bool {
 							if order.Floor == data.Floor && order.Direction == data.Direction { // Removes recalculated order from last queue
 								clients[n].Orders = append(
 								clients[n].Orders[0:i],clients[n].Orders[i+1:]...)
-								orderOK = true		
+								orderOK = true	
 							}								
 						}					
 					}

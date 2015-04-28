@@ -7,7 +7,6 @@ import (
 	"math"
 	"strconv"
 	"time"
-	//"reflect"
 )
 
 //TODO Flere ordre på samme knapp

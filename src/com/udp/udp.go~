@@ -3,7 +3,6 @@ package udp
 import (
 	"net"
 	"strings"
-	"strconv"
 )
 
 const maxPacketSize int = 100

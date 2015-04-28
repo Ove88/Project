@@ -3,10 +3,10 @@ package tcp
 import (
 	"errors"
 	"net"
-	"strconv"
 	"strings"
 	"reflect"
 	"time"
+	"strconv"
 )
 
 type Protocol interface {
@@ -102,7 +102,6 @@ func StartClient(localIPAddr, remoteAddr string, send_ch <-chan IDable,
 
 	conn, err := net.DialTCP("tcp4", laddr, raddr)
 	if err != nil {
-		println(err.Error())
 		conn.Close()
 		return
 	}
@@ -124,7 +123,6 @@ func listenForClients(listenConn *net.TCPListener, receive_ch chan<- interface{}
 		clientExists = false
 		conn, err := listenConn.AcceptTCP()
 		if err != nil {
-			//println("Closing listenconn")
 			active = false
 			listenConn.Close()
 			cStatus_ch <- ClientStatus{-1, false, false}
@@ -173,7 +171,6 @@ func receivePackets(client_ *client, receive_ch chan<- interface{}, pr Protocol,
 	for {
 		n, err := client_.conn.Read(buffer)
 		if err != nil {
-			//println("closing clientconn")
 			client_.active = false
 			client_.conn.Close()
 			cStatus_ch <- ClientStatus{client_.id, client_.active, false}

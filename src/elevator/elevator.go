@@ -4,7 +4,6 @@ package elevator
 import (
 	"elevator/driver"
 	"time"
-	//"strconv"
 )
 	
 const (

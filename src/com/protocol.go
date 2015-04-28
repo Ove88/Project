@@ -73,8 +73,6 @@ type ButtonLamp struct {
 	State  bool
 }
 
-/////   Sett inn flere datastructer her   /////
-
 func (pr headerProtocol) Decode(buffer []byte) (interface{}, bool) {
 
 	pr.tempBuffer = append(pr.tempBuffer, buffer...)
@@ -118,28 +116,15 @@ func (pr headerProtocol) Decode(buffer []byte) (interface{}, bool) {
 			return message, received
 			}
 		}
-		//// Legg til ny case for hver nye datastruct her ////
 	}
 	return nil, received
 }
 
 func (pr headerProtocol) Encode(message tcp.IDable) []byte {
 	data, _ := json.Marshal(message)
-	typeOfMessage := message.GetType() //strings.Split(reflect.TypeOf(message).String(), ".")[1]
+	typeOfMessage := message.GetType()
 	return pr.wrapMessage(data, typeOfMessage)
 }
-
-// func (pr headerProtocol) SetBufferSize(size int) {
-// 	capasity := cap(pr.tempBuffer)
-// 	if size > capasity {
-// 		newBuffer := make([]byte, len(pr.tempBuffer), size)
-// 		copy(newBuffer, pr.tempBuffer)
-// 		pr.tempBuffer = newBuffer
-// 	} else {
-// 		pr.tempBuffer = pr.tempBuffer[0:size]
-// 	}
-// 	return
-// }
 
 func (pr headerProtocol) wrapMessage(data []byte, typeOfMessage string) []byte {
 
